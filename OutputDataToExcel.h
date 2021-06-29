@@ -58,7 +58,7 @@ void Inpainting_and_OutputToExcel() {
 		/* HMRF(階層型マルコフ確率場)によるノイズ除去 */
 		cout << "パラメータ推定あり(HMRF)のノイズ除去…" << endl;	// 実行確認用
 		Start2 = clock();
-		//DenoisingHMRF(Image_dst_HMRF, K_Image_dst, nowK, MAX_INTENSE);
+		DenoisingHMRF(Image_dst_HMRF, K_Image_dst, nowK, MAX_INTENSE);
 		End2 = clock();
 		Time_difference2 = (double)End2 - (double)Start2;
 		double time2 = static_cast<double>(Time_difference2) / CLOCKS_PER_SEC * 1000.0;

@@ -7,8 +7,9 @@
 /* MRFのパラメータ */
 double Converge_MRF = 1.0e-8;	// パラメータ推定の収束判定値
 int MaxIteration_MRF = 100;		// パラメータ推定の最大反復回数
-const double LearningRate_mean = 1.0e-13;			// 学習率
-const double LearningRate_alpha = 1.0e-6;
+const double LearningRate_mean = 1.0e-9;			// 学習率
+//const double LearningRate_alpha = 1.0e-6;
+const double LearningRate_alpha = 1.0e-4;
 const double LearningRate_lambda = 1.0e-13;
 double h_MRF = 0.0;					// パラメータ
 double SIGMA_MRF = 40;
@@ -350,6 +351,7 @@ void GMM_MRF::MaximumPosteriorEstimation() {
 
 	if (MRF_POST_flg != 0) { cout << " GaussSeidelアルゴリズム 収束失敗! : errorConvergence = " << (double)errorConvergence << endl; }
 	//else { cout << " GaussSeidelアルゴリズム 収束成功" << endl; }
+	//cout << "GaussSeidel : mean=" << (double)GMM_mean << ",alpha=" << (double)GMM_alpha << ",lambda=" << (double)GMM_lambda << ",sigma2=" << (double)GMM_sigma2 << endl;	// 確認用
 }
 void GMM_MRF::EstimatedParameter(int converge, int Max_Iteration) {
 	int EM_flg = 1;	// 収束フラグ
@@ -358,10 +360,10 @@ void GMM_MRF::EstimatedParameter(int converge, int Max_Iteration) {
 	int pix_index;
 	double doubleIntensity;
 	int c_EM, c_M;
-	const int Iteration_EMstep = 2/*Max_Iteration*/;	// 最大反復回数
-	const int Iteration_Mstep = MAXIteration_MRF;
+	const int Iteration_EMstep = 1/*Max_Iteration*/;	// 最大反復回数
+	const int Iteration_Mstep = 10/*MAXIteration_MRF*/;
 	const double eps_EMstep = 0.1/*converge*/;			// 収束判定値
-	const double eps_Mstep = converge;
+	const double eps_Mstep = 1.0e-5/*converge*/;
 
 	double h_old, lambda_old, sigma2_old, alpha_old;
 	double grad_h, grad_lambda, grad_alpha;
@@ -390,8 +392,8 @@ void GMM_MRF::EstimatedParameter(int converge, int Max_Iteration) {
 		MaximumPosteriorEstimation();
 
 		// sigma2 の推定
-		double center_aveVec = CalcAverage(averageVector);
-		double center_aveImg = CalcAverage(averageImage);
+		/*double center_aveVec = CalcAverage(averageVector);
+		double center_aveImg = CalcAverage(averageImage);*/
 		cout << " sigma2=" << GMM_sigma2 << "  =>  ";	// 確認用
 		CalculationFunction1(sigma2_old, alpha_old, lambda_old, imageK, eigenValue, calc_function1);
 		tmp1 = 0.0, tmp2 = 0.0;
@@ -401,9 +403,9 @@ void GMM_MRF::EstimatedParameter(int converge, int Max_Iteration) {
 				for (c = 0; c < 3; c++) {
 					pix_index = (y * GMM_XSIZE + x) * 3 + c;
 					tmp1 += (double)calc_function1.data[pix_index] / ((double)GMM_MAX_PIX * 3.0);
-					//tmp2 += pow((double)(averageVector.data[pix_index] - averageImage.data[pix_index]), 2) / ((double)GMM_MAX_PIX * 3.0 * (double)imageK);
-					tmp2 = ((double)averageVector.data[pix_index] - center_aveVec) - ((double)averageImage.data[pix_index] - center_aveImg);
-					tmp2 += pow((double)tmp2, 2) / ((double)GMM_MAX_PIX * 3.0 * (double)imageK);
+					tmp2 += pow((double)(averageVector.data[pix_index] - averageImage.data[pix_index]), 2) / ((double)GMM_MAX_PIX * 3.0 * (double)imageK);
+					/*tmp2 = ((double)averageVector.data[pix_index] - center_aveVec) - ((double)averageImage.data[pix_index] - center_aveImg);
+					tmp2 += pow((double)tmp2, 2) / ((double)GMM_MAX_PIX * 3.0 * (double)imageK);*/
 				}
 			}
 		}
@@ -415,6 +417,9 @@ void GMM_MRF::EstimatedParameter(int converge, int Max_Iteration) {
 		// h, alpha, lambda の推定
 		for (c_M = 0; c_M < Iteration_Mstep; c_M++) {
 			errorM = 0;
+
+			// 事後分布のガウスザイデル法による推定
+			MaximumPosteriorEstimation();
 
 			grad_h_post = -((double)GMM_MAX_PIX * GMM_mean) / GMM_lambda;
 			tmp1 = CalculationFunction2(averageImage);
@@ -475,8 +480,8 @@ void GMM_MRF::EstimatedParameter(int converge, int Max_Iteration) {
 			if (errorM < fabs(lambda_old - GMM_lambda)) {
 				errorM = fabs(lambda_old - GMM_lambda);
 			}
-			//cout << " errorM: gamma=" << fabs(h_old - GMM_mean) << " , lambda=" << fabs(lambda_old - GMM_lambda) << " , alpha=" << fabs(alpha_old - GMM_alpha) << endl;	// 確認用
-			//cout << " errorM = " << errorM << " : mean=" << GMM_mean << " , lambda=" << GMM_lambda << " , alpha=" << GMM_alpha << " , sigma2=" << GMM_sigma2 << endl;	// 確認用
+			cout << " errorM: mean=" << fabs(h_old - GMM_mean) << " , lambda=" << fabs(lambda_old - GMM_lambda) << " , alpha=" << fabs(alpha_old - GMM_alpha) << endl;	// 確認用
+			//cout << " errorM = " << errorM << " : mean=" << GMM_mean << " , lambda=" << GMM_lambda << " , alpha=" << GMM_alpha << endl;	// 確認用
 
 			h_old = GMM_mean;
 			lambda_old = GMM_lambda;

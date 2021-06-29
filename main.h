@@ -34,7 +34,7 @@ int MAX_INTENSE = 255;	// 最大色値
 int WIDTH;				// 入力画像の横幅（ピクセル数）
 int HEIGHT;				// 入力画像の縦幅（ピクセル数）
 int MAX_DATA;			// 入力画像の総ピクセル数
-int IMAGE_NUMBER = 1;	// 画像枚数 K
+int IMAGE_NUMBER = 0;	// 画像枚数 K
 
 /* 関数 */
 void Input_Image();			// 画像の入力
@@ -200,6 +200,7 @@ public:
 	Mat averageImage;			// 平均画像
 	Mat averageSquareImage;		// 2乗平均画像
 	Mat eigenValue;				// グラフラプラシアンの固有値
+	vector<double> EigenValue;
 
 	// 平均値
 	vector<double> LIKELIHOOD_Average;
@@ -248,6 +249,7 @@ GMM::GMM() {
 	averageImage = Mat(Size(GMM_XSIZE, GMM_YSIZE), CV_64FC3);
 	averageSquareImage = Mat(Size(GMM_XSIZE, GMM_YSIZE), CV_64FC3);
 	eigenValue = Mat(Size(GMM_XSIZE, GMM_YSIZE), CV_64FC3);
+	EigenValue.clear();
 
 	GMM_mean = 0.0;
 	GMM_lambda = 1.0e-7;
@@ -374,13 +376,19 @@ void GMM::CreateDoubleAverageSquareImageMat() {
 	}
 }
 void GMM::eigenValueGrid2D() {
+	EigenValue.clear();
+	double eigenValue_tmp;
 #pragma omp parallel for private(GMMx, GMMc)
 	for (GMMy = 0; GMMy < GMM_YSIZE; GMMy++) {
 		for (GMMx = 0; GMMx < GMM_XSIZE; GMMx++) {
 			for (GMMc = 0; GMMc < 3; GMMc++) {
 				GMM_index = (GMMy * GMM_XSIZE + GMMx) * 3 + GMMc;
-				eigenValue.data[GMM_index] = (double)(4 * sin(0.5 * GMMx * _M_PI / GMM_XSIZE) * sin(0.5 * GMMx * _M_PI / GMM_XSIZE) + 4 * sin(0.5 * GMMy * _M_PI / GMM_YSIZE) * sin(0.5 * GMMy * _M_PI / GMM_YSIZE));
+				eigenValue_tmp = (double)(4 * sin(0.5 * GMMx * _M_PI / GMM_XSIZE) * sin(0.5 * GMMx * _M_PI / GMM_XSIZE) + 4 * sin(0.5 * GMMy * _M_PI / GMM_YSIZE) * sin(0.5 * GMMy * _M_PI / GMM_YSIZE));
+				EigenValue.push_back(eigenValue_tmp);
+				eigenValue.data[GMM_index] = eigenValue_tmp;
+				//cout << (double)(4 * sin(0.5 * GMMx * _M_PI / GMM_XSIZE) * sin(0.5 * GMMx * _M_PI / GMM_XSIZE) + 4 * sin(0.5 * GMMy * _M_PI / GMM_YSIZE) * sin(0.5 * GMMy * _M_PI / GMM_YSIZE)) << endl;	// 確認用
 				//cout << (double)eigenValue.data[GMM_index] << endl;	// 確認用
+				//cout << (double)EigenValue[GMM_index] << endl;	// 確認用
 			}
 		}
 	}
