@@ -6,16 +6,15 @@
 
 /* MRFのパラメータ */
 double CONVERGE_H = 1.0e-8;		// パラメータ推定の収束判定値
-int MAXIteration_H = 100;		// パラメータ推定の最大反復回数
-const double LearningRate_Alpha_H = 1.0e-4;		// 学習率
+int MAXIteration_H = 500;		// パラメータ推定の最大反復回数
+const double LearningRate_Alpha_H = 1.0e-5;		// 学習率
 const double LearningRate_Lambda_H = 1.0e-10;
 const double LearningRate_Gamma_H = 1.0e-7;
 //const double LearningRate_Alpha_H = 1.0e-6;		// 学習率
 //const double LearningRate_Lambda_H = 1.0e-12;
 //const double LearningRate_Gamma_H = 1.0e-9;
-double SIGMA_HMRF_H = 40;		// パラメータ
+double SIGMA_HMRF_H = 35;		// パラメータ
 double ALPHA_HMRF_H = 1.0e-4;
-//double ALPHA_HMRF_H = 1.0;				// (規格化時)
 double LAMBDA_HMRF_H = 1.0e-7;
 double GAMMA_HMRF_H = 1.0e-3;
 
@@ -117,12 +116,13 @@ double CalcFunction_lambda(double lambda, double alpha, double gamma, Mat& Gurap
 
 	return result_lambda;
 }
-double CalcFunction_lambda_E(double lambda, double alpha, double gamma, vector<double>& GuraphRap, Mat& Kai, vector<double>& kai) {
+double CalcFunction_lambda_E(double lambda, double alpha, double gamma, vector<double>& GuraphRap, Mat& Kai, int& K, double& sigma2) {
 	double result_lambda = 0.0;
 	int x, y, c;
 	int lambda_index;
 
 	double lambda_num_tmp1, lambda_num_tmp2, lambda_num_tmp3;
+	double kai_tmp;
 #pragma omp parallel for private(x, c)
 	for (y = 0; y < Kai.rows; y++) {
 		for (x = 0; x < Kai.cols; x++) {
@@ -133,8 +133,9 @@ double CalcFunction_lambda_E(double lambda, double alpha, double gamma, vector<d
 				//cout << (double)lambda_num_tmp1 << " , " << (double)lambda_num_tmp2 << endl;	// 確認用
 				lambda_num_tmp3 = ((double)2.0 / (double)lambda_num_tmp1) - ((double)1.0 / (double)lambda_num_tmp2);
 				//cout << (double)lambda_num_tmp3 << " = " << (double)(2.0 / lambda_num_tmp1) << " - " << (double)(1.0 / lambda_num_tmp2) << endl;	// 確認用
-				if ((double)kai[lambda_index] != 0) {
-					result_lambda += ((double)lambda_num_tmp3 / (double)kai[lambda_index]);
+				kai_tmp = Kai_original_H(K, sigma2, GuraphRap[lambda_index], lambda, alpha, gamma);
+				if (kai_tmp != 0) {
+					result_lambda += ((double)lambda_num_tmp3 / (double)kai_tmp);
 				}
 				//cout << (double)lambda_num_tmp3 << " / " << (double)Kai.data[lambda_index] << endl;	// 確認用
 				//cout << (double)result_lambda << endl;	// 確認用
@@ -169,12 +170,13 @@ double CalcFunction_alpha(double lambda, double alpha, double gamma, Mat& Guraph
 
 	return result_alpha;
 }
-double CalcFunction_alpha_E(double lambda, double alpha, double gamma, vector<double>& GuraphRap, Mat& Kai, vector<double>& kai) {
+double CalcFunction_alpha_E(double lambda, double alpha, double gamma, vector<double>& GuraphRap, Mat& Kai, int& K, double& sigma2) {
 	double result_alpha = 0.0;
 	int x, y, c;
 	int alpha_index;
 
 	double alpha_num_tmp1, alpha_num_tmp2;
+	double kai_tmp;
 #pragma omp parallel for private(x, c)
 	for (y = 0; y < Kai.rows; y++) {
 		for (x = 0; x < Kai.cols; x++) {
@@ -183,8 +185,9 @@ double CalcFunction_alpha_E(double lambda, double alpha, double gamma, vector<do
 				alpha_num_tmp1 = (double)(lambda + alpha * GuraphRap[alpha_index]);
 				alpha_num_tmp2 = (double)(gamma + lambda + alpha * GuraphRap[alpha_index]);
 				alpha_num_tmp1 = (double)(2.0 / alpha_num_tmp1) - (double)(1.0 / alpha_num_tmp2);
-				if ((double)kai[alpha_index] != 0) {
-					result_alpha += ((double)GuraphRap[alpha_index] / (double)kai[alpha_index]) * (double)alpha_num_tmp1;
+				kai_tmp = Kai_original_H(K, sigma2, GuraphRap[alpha_index], lambda, alpha, gamma);
+				if (kai_tmp != 0) {
+					result_alpha += ((double)GuraphRap[alpha_index] / (double)kai_tmp) * (double)alpha_num_tmp1;
 				}
 			}
 		}
@@ -289,20 +292,22 @@ double CalcFunction_gamma(double lambda, double alpha, double gamma, Mat& Guraph
 
 	return result_gamma;
 }
-double CalcFunction_gamma_E(double lambda, double alpha, double gamma, vector<double>& GuraphRap, Mat& Kai, vector<double>& kai) {
+double CalcFunction_gamma_E(double lambda, double alpha, double gamma, vector<double>& GuraphRap, Mat& Kai, int& K, double& sigma2) {
 	double result_gamma = 0.0;
 	int x, y, c;
 	int gamma_index;
 
 	double gamma_num_tmp;
+	double kai_tmp;
 #pragma omp parallel for private(x, c)
 	for (y = 0; y < Kai.rows; y++) {
 		for (x = 0; x < Kai.cols; x++) {
 			for (c = 0; c < 3; c++) {
 				gamma_index = (y * Kai.cols + x) * 3 + c;
 				gamma_num_tmp = 1.0 / (double)(gamma + lambda + alpha * GuraphRap[gamma_index]);
-				if ((double)kai[gamma_index] != 0) {
-					result_gamma += ((double)gamma_num_tmp / (double)kai[gamma_index]);
+				kai_tmp = Kai_original_H(K, sigma2, GuraphRap[gamma_index], lambda, alpha, gamma);
+				if (kai_tmp != 0) {
+					result_gamma += ((double)gamma_num_tmp / (double)kai_tmp);
 				}
 			}
 		}
@@ -340,6 +345,7 @@ GMM_HMRF::GMM_HMRF(int K, int max_intense, Mat& ImageDst, vector<Mat> likelihood
 	GMM_YSIZE = ImageDst.rows;
 	GMM_MAX_PIX = GMM_XSIZE * GMM_YSIZE;
 	LIKELIHOOD.clear();
+	LIKELIHOOD_Average.clear();
 	Mat lilelihood_tmp;
 #pragma omp parallel for private(MRFy, MRFx, MRFc)
 	for (imgK = 0; imgK < imageK; imgK++) {
@@ -353,6 +359,9 @@ GMM_HMRF::GMM_HMRF(int K, int max_intense, Mat& ImageDst, vector<Mat> likelihood
 			}
 		}
 		LIKELIHOOD.push_back(lilelihood_tmp);
+		
+		double Average = CalcAverage(lilelihood_tmp);
+		LIKELIHOOD_Average.push_back(Average);
 	}
 
 	POSTERIOR = Mat(Size(ImageDst.cols, ImageDst.rows), CV_64FC3);
@@ -411,7 +420,7 @@ void GMM_HMRF::MaximumPosteriorEstimation() {
 	int HMRF_POST_flg = 1; // 収束判定フラグ
 	int x, y, c;
 
-	double errorConvergence;
+	double errorConvergence = 0.0;
 	double numer[3], denom, ave[3], Yi[3];
 	double numer2[3], denom2, ave2[3];
 	int adjacent_pix_num;
@@ -428,7 +437,7 @@ void GMM_HMRF::MaximumPosteriorEstimation() {
 	//averageImage.copyTo(averageVector);	 // 事後分布の平均ベクトル初期化
 
 	for (int count = 0; count < MaxIteration_HMRF_H; count++) {
-		errorConvergence = 0;
+		errorConvergence = 0.0;
 #pragma omp parallel for private(x, numer, denom, ave, numer2, denom2, ave2, c) reduction(+ : errorConvergence)
 		for (y = 0; y < GMM_YSIZE; y++) {
 			for (x = 0; x < GMM_XSIZE; x++) {
@@ -605,8 +614,8 @@ void GMM_HMRF::MaximumMapWEstimation() {
 				Yi[1] = (double)averageVector2.data[col_index + 1];
 				Yi[2] = (double)averageVector2.data[col_index + 2];*/
 				Yi[0] = (double)averageVec2[col_index + 0];
-				Yi[1] = (double)averageVec2[col_index + 1];
-				Yi[2] = (double)averageVec2[col_index + 2];
+				Yi[1] = (double)averageVec2[(int)(col_index + 1)];
+				Yi[2] = (double)averageVec2[(int)(col_index + 2)];
 				//cout << (double)Yi[2] << endl;	// 確認用
 				for (int c = 0; c < 3; c++) {
 					numer[c] = (double)Yi[c];
@@ -766,12 +775,15 @@ void GMM_HMRF::EstimatedParameter(double converge, int Max_Iteration) {
 					tmp1 += (double)tmp3 / ((double)GMM_MAX_PIX * 3.0);*/
 					//tmp2 += pow((double)(averageVector.data[pix_index] - averageImage.data[pix_index]), 2) / ((double)GMM_MAX_PIX * 3.0);
 					for (imgK = 0; imgK < imageK; imgK++) {
-						tmp2 += pow((double)(LIKELIHOOD[imgK].data[pix_index] - averageImage.data[pix_index]), 2) / ((double)GMM_MAX_PIX * 3.0 * (double)imageK);
+						//tmp2 += pow((double)(LIKELIHOOD[imgK].data[pix_index] - averageImage.data[pix_index]), 2) / ((double)GMM_MAX_PIX * 3.0 * (double)imageK);
+						double TMP = (double)(LIKELIHOOD[imgK].data[pix_index] - LIKELIHOOD_Average[imgK]) - (double)(averageImage.data[pix_index] - averageImage_Average);
+						//cout << (double)TMP << "=" << (double)(LIKELIHOOD[imgK].data[pix_index] - LIKELIHOOD_Average[imgK]) << "-" << (double)(averageImage.data[pix_index] - averageImage_Average) << endl;	// 確認用
+						tmp2 += pow(TMP, 2) / ((double)GMM_MAX_PIX * 3.0 * (double)imageK);
 					}
 				}
 			}
 		}
-		cout << " tmp3 = " << (double)tmp3 << endl;	// 確認用
+		//cout << " tmp3 = " << (double)tmp3 << endl;	// 確認用
 		tmp1 = (double)tmp3 / ((double)GMM_MAX_PIX * 3.0);
 		GMM_sigma2 = tmp1 + tmp2;
 		GMM_sigma = sqrt(GMM_sigma2);
@@ -787,14 +799,14 @@ void GMM_HMRF::EstimatedParameter(double converge, int Max_Iteration) {
 			MaximumMapWEstimation();
 			//CalculationFunction1_H(sigma2_old, alpha_old, lambda_old, gamma_old, imageK, eigenValue, calc_function1);
 			tmp3 = CalculationFunction1_H_E(sigma2_old, alpha_old, lambda_old, gamma_old, imageK, EigenValue, calc_function1, calc_func1);
-
+			
 			// 尤度関数の微分の計算
 			//grad_lambda = (double)CalcFunction_lambda(GMM_lambda, GMM_alpha, GMM_gamma, eigenValue, calc_function1) / GMM_sigma2;
 			//grad_alpha = (double)CalcFunction_alpha(GMM_lambda, GMM_alpha, GMM_gamma, eigenValue, calc_function1) / GMM_sigma2;
 			//grad_gamma = (double)CalcFunction_gamma(GMM_lambda, GMM_alpha, GMM_gamma, eigenValue, calc_function1) / GMM_sigma2;
-			grad_lambda = (double)CalcFunction_lambda_E(GMM_lambda, GMM_alpha, GMM_gamma, EigenValue, calc_function1, calc_func1) / GMM_sigma2;
-			grad_alpha = (double)CalcFunction_alpha_E(GMM_lambda, GMM_alpha, GMM_gamma, EigenValue, calc_function1, calc_func1) / GMM_sigma2;
-			grad_gamma = (double)CalcFunction_gamma_E(GMM_lambda, GMM_alpha, GMM_gamma, EigenValue, calc_function1, calc_func1) / GMM_sigma2;
+			grad_lambda = (double)CalcFunction_lambda_E(GMM_lambda, GMM_alpha, GMM_gamma, EigenValue, calc_function1, imageK, GMM_sigma2) / GMM_sigma2;
+			grad_alpha = (double)CalcFunction_alpha_E(GMM_lambda, GMM_alpha, GMM_gamma, EigenValue, calc_function1, imageK, GMM_sigma2) / GMM_sigma2;
+			grad_gamma = (double)CalcFunction_gamma_E(GMM_lambda, GMM_alpha, GMM_gamma, EigenValue, calc_function1, imageK, GMM_sigma2) / GMM_sigma2;
 			//cout << "  " << (double)CalcFunction_lambda_E(GMM_lambda, GMM_alpha, GMM_gamma, EigenValue, calc_function1) << " , " << (double)CalcFunction_alpha_E(GMM_lambda, GMM_alpha, GMM_gamma, EigenValue, calc_function1) << " , " << (double)CalcFunction_gamma_E(GMM_lambda, GMM_alpha, GMM_gamma, EigenValue, calc_function1) << endl;	// 確認用
 			//cout << "  grad_gamma=" << grad_gamma << " , grad_lambda=" << grad_lambda << " , grad_alpha=" << grad_alpha << endl;	// 確認用
 			

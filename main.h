@@ -34,7 +34,7 @@ int MAX_INTENSE = 255;	// 最大色値
 int WIDTH;				// 入力画像の横幅（ピクセル数）
 int HEIGHT;				// 入力画像の縦幅（ピクセル数）
 int MAX_DATA;			// 入力画像の総ピクセル数
-int IMAGE_NUMBER = 0;	// 画像枚数 K
+int IMAGE_NUMBER = 1;	// 画像枚数 K
 
 /* 関数 */
 void Input_Image();			// 画像の入力
@@ -117,7 +117,7 @@ double CalcAverage(Mat& doubleMat) {
 		}
 	}
 
-	cout << "  average = " << average << endl;	// 確認用
+	//cout << "  average = " << average << endl;	// 確認用
 	return average;
 }
 // double型3チャンネルのMat画像を中心化

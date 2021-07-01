@@ -8,11 +8,11 @@
 double Converge_MRF = 1.0e-8;	// パラメータ推定の収束判定値
 int MaxIteration_MRF = 100;		// パラメータ推定の最大反復回数
 const double LearningRate_mean = 1.0e-9;			// 学習率
-//const double LearningRate_alpha = 1.0e-6;
-const double LearningRate_alpha = 1.0e-4;
+const double LearningRate_alpha = 4.0e-6;
+//const double LearningRate_alpha = 1.0e-4;
 const double LearningRate_lambda = 1.0e-13;
 double h_MRF = 0.0;					// パラメータ
-double SIGMA_MRF = 40;
+double SIGMA_MRF = 35;
 double ALPHA_MRF = 1.0e-4;
 double LAMBDA_MRF = 1.0e-7;
 
@@ -402,8 +402,12 @@ void GMM_MRF::EstimatedParameter(int converge, int Max_Iteration) {
 			for (x = 0; x < GMM_XSIZE; x++) {
 				for (c = 0; c < 3; c++) {
 					pix_index = (y * GMM_XSIZE + x) * 3 + c;
-					tmp1 += (double)calc_function1.data[pix_index] / ((double)GMM_MAX_PIX * 3.0);
-					tmp2 += pow((double)(averageVector.data[pix_index] - averageImage.data[pix_index]), 2) / ((double)GMM_MAX_PIX * 3.0 * (double)imageK);
+					tmp3 = (double)(GMM_lambda + ((double)imageK / GMM_sigma2) + GMM_alpha * (double)eigenValue.data[pix_index]);
+					tmp1 += 1.0 / ((double)tmp3 * ((double)GMM_MAX_PIX * 3.0));
+					//tmp1 += ((double)calc_function1.data[pix_index] / ((double)GMM_MAX_PIX * 3.0));
+					for (imgK = 0; imgK < imageK; imgK++) {
+						tmp2 += pow((double)(averageVector.data[pix_index] - LIKELIHOOD[imgK].data[pix_index]), 2) / ((double)GMM_MAX_PIX * 3.0 * (double)imageK);
+					}
 					/*tmp2 = ((double)averageVector.data[pix_index] - center_aveVec) - ((double)averageImage.data[pix_index] - center_aveImg);
 					tmp2 += pow((double)tmp2, 2) / ((double)GMM_MAX_PIX * 3.0 * (double)imageK);*/
 				}
