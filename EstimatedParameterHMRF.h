@@ -11,6 +11,7 @@ int MAXIteration_H = 100;		// パラメータ推定の最大反復回数
 //const double LearningRate_Lambda_H = 1.0e-10;
 //const double LearningRate_Gamma_H = 1.0e-7;
 const double LearningRate_Alpha_H = 1.0e-6;		// 学習率
+//const double LearningRate_Alpha_H = 5.0e-7;
 const double LearningRate_Lambda_H = 1.0e-12;
 const double LearningRate_Gamma_H = 1.0e-9;
 double SIGMA_HMRF_H = 35;		// パラメータ

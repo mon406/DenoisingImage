@@ -45,9 +45,16 @@ int main() {
 		cout << "time : " << time2 << "[ms]" << endl;
 		cout << endl;
 
+		/* NonLocalMeansによるノイズ除去 */
+		cout << "Non-Local Meansのノイズ除去…" << endl;	// 実行確認用
+		//void cv::fastNlMeansDenoisingColored(src, dst, h=3, hColor=3, templateWindowSize=7, searchWindowSize=21)
+		fastNlMeansDenoisingColored(Image_dst, Image_dst_NLM, 7, 3, 7, 21);
+
 		/* 画像の評価 */
 		cout << "ノイズ画像 と 元画像" << endl;			// 実行確認用
 		MSE_PSNR_SSIM(Image_src, Image_dst);
+		cout << "NLM修復画像 と 元画像" << endl;		// 実行確認用
+		MSE_PSNR_SSIM(Image_src, Image_dst_NLM);
 		cout << "MRF修復画像 と 元画像" << endl;		// 実行確認用
 		MSE_PSNR_SSIM(Image_src, Image_dst_MRF);
 		cout << "HMRF修復画像 と 元画像" << endl;		// 実行確認用
@@ -65,7 +72,8 @@ int main() {
 
 // 画像の入力
 void Input_Image() {
-	string file_src = "C:\\Users\\mon25\\Desktop\\DenoisingImage\\src.jpg";		// 入力画像のファイル名
+	//string file_src = "C:\\Users\\mon25\\Desktop\\DenoisingImage\\src.jpg";		// 入力画像のファイル名
+	string file_src = "C:\\Users\\Yuki Momma\\Desktop\\DenoisingImage\\src.jpg";		// 入力画像のファイル名
 	Image_src = imread(file_src, 1);						// 入力画像（カラー）の読み込み
 
 	/* パラメータ定義 */
@@ -79,16 +87,23 @@ void Input_Image() {
 }
 // 画像の出力
 void Output_Image() {
-	string file_dst = "C:\\Users\\mon25\\Desktop\\DenoisingImage\\dst.jpg";		// 出力画像のファイル名
-	string file_dst2 = "C:\\Users\\mon25\\Desktop\\DenoisingImage\\dst_MRF.jpg";
-	string file_dst3 = "C:\\Users\\mon25\\Desktop\\DenoisingImage\\dst_HMRF.jpg";
-	string file_dst4 = "C:\\Users\\mon25\\Desktop\\DenoisingImage\\dst_average.jpg";
+	//string file_dst = "C:\\Users\\mon25\\Desktop\\DenoisingImage\\dst.jpg";		// 出力画像のファイル名
+	//string file_dst2 = "C:\\Users\\mon25\\Desktop\\DenoisingImage\\dst_MRF.jpg";
+	//string file_dst3 = "C:\\Users\\mon25\\Desktop\\DenoisingImage\\dst_HMRF.jpg";
+	//string file_dst4 = "C:\\Users\\mon25\\Desktop\\DenoisingImage\\dst_average.jpg";
+	//string file_dst5 = "C:\\Users\\mon25\\Desktop\\DenoisingImage\\dst_NLM.jpg";
+	string file_dst = "C:\\Users\\Yuki Momma\\Desktop\\DenoisingImage\\dst.jpg";		// 出力画像のファイル名
+	string file_dst2 = "C:\\Users\\Yuki Momma\\Desktop\\DenoisingImage\\dst_MRF.jpg";
+	string file_dst3 = "C:\\Users\\Yuki Momma\\Desktop\\DenoisingImage\\dst_HMRF.jpg";
+	string file_dst4 = "C:\\Users\\Yuki Momma\\Desktop\\DenoisingImage\\dst_average.jpg";
+	string file_dst5 = "C:\\Users\\Yuki Momma\\Desktop\\DenoisingImage\\dst_NLM.jpg";
 
 	/* ウィンドウ生成 */
 	namedWindow(win_src, WINDOW_AUTOSIZE);
 	namedWindow(win_dst, WINDOW_AUTOSIZE);
 	namedWindow(win_dst2, WINDOW_AUTOSIZE);
 	namedWindow(win_dst3, WINDOW_AUTOSIZE);
+	namedWindow(win_dst4, WINDOW_AUTOSIZE);
 
 	/* 画像の表示 & 保存 */
 	imshow(win_src, Image_src);				// 入力画像を表示
@@ -99,6 +114,8 @@ void Output_Image() {
 	imshow(win_dst3, Image_dst_HMRF);		// 出力画像を表示(ノイズ除去画像HMRF)
 	imwrite(file_dst3, Image_dst_HMRF);		// 処理結果の保存
 	imwrite(file_dst4, Image_dst_average);	// 処理結果の保存(ノイズ平均画像)
+	imshow(win_dst4, Image_dst_NLM);		// 出力画像を表示(ノイズ除去画像MRF)
+	imwrite(file_dst5, Image_dst_NLM);		// 処理結果の保存
 
 	waitKey(0); // キー入力待ち
 }

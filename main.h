@@ -18,6 +18,7 @@ string win_src = "src";				// 入力画像ウィンドウ
 string win_dst = "dst";				// 出力画像ウィンドウ(ノイズ画像)
 string win_dst2 = "dst_MRF";	// 出力画像ウィンドウ(ノイズ除去画像MRF)
 string win_dst3 = "dst_HMRF";	// 出力画像ウィンドウ(ノイズ除去画像HMRF)
+string win_dst4 = "dst_NLM";	// 出力画像ウィンドウ(ノイズ除去画像HMRF)
 
 #define _M_PI 3.1415926535897932384626433
 
@@ -28,13 +29,14 @@ Mat Image_dst;				// 出力補修画像(ノイズ画像)
 Mat Image_dst_average;		// 出力補修画像(ノイズ平均画像)
 Mat Image_dst_MRF;			// 出力補修画像(ノイズ除去画像MRF)
 Mat Image_dst_HMRF;			// 出力補修画像(ノイズ除去画像HMRF)
+Mat Image_dst_NLM;		// 指定出力補修画像(ノイズ除去画像NonLocalMeans)
 
 /* 定数 */
 int MAX_INTENSE = 255;	// 最大色値
 int WIDTH;				// 入力画像の横幅（ピクセル数）
 int HEIGHT;				// 入力画像の縦幅（ピクセル数）
 int MAX_DATA;			// 入力画像の総ピクセル数
-int IMAGE_NUMBER = 0;	// 画像枚数 K
+int IMAGE_NUMBER = 1;	// 画像枚数 K
 
 /* 関数 */
 void Input_Image();			// 画像の入力
