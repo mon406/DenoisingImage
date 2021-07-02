@@ -1,1 +1,1 @@
-# DenoisingImage
+# Denoising Image with estimated Parameter
