@@ -3,10 +3,6 @@
 
 #include "main.h"
 
-/* ガウスノイズ付加時のパラメータ */
-static double NoiseMean = 0.0;	// ノイズの平均
-static double NoiseSigma = 30;	// ノイズの標準偏差（2乗で分散）
-
 
 // K 枚の劣化画像の生成 (ガウスノイズ付加)
 void GaussianNoiseImage(const int K, const Mat& ORIGINAL_IMG, vector<Mat>& NOISE_IMG) {

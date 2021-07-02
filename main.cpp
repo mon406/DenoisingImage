@@ -24,6 +24,8 @@ int main() {
 		CreateAverageImage(IMAGE_NUMBER, Image_dst_average, K_Image_dst, MAX_INTENSE);	// 平均画像生成
 		Image_dst.copyTo(Image_dst_MRF);
 		Image_dst.copyTo(Image_dst_HMRF);
+		Image_dst.copyTo(Image_dst_NLM);
+		Image_dst.copyTo(Image_dst_NLMdef);
 
 		/* MRF(マルコフ確率場)によるノイズ除去 */
 		cout << "パラメータ推定あり(MRF)のノイズ除去…" << endl;	// 実行確認用
@@ -48,12 +50,18 @@ int main() {
 		/* NonLocalMeansによるノイズ除去 */
 		cout << "Non-Local Meansのノイズ除去…" << endl;	// 実行確認用
 		//void cv::fastNlMeansDenoisingColored(src, dst, h=3, hColor=3, templateWindowSize=7, searchWindowSize=21)
-		fastNlMeansDenoisingColored(Image_dst, Image_dst_NLM, 7, 3, 7, 21);
+		fastNlMeansDenoisingColored(Image_dst_average, Image_dst_NLMdef);
+		double best_h = (double)NoiseSigma / (double)sqrt(IMAGE_NUMBER);
+		cout << " best_h = " << (double)best_h << endl;
+		fastNlMeansDenoisingColored(Image_dst_average, Image_dst_NLM, best_h, 3, 7, 21);
+		cout << endl;
 
 		/* 画像の評価 */
 		cout << "ノイズ画像 と 元画像" << endl;			// 実行確認用
 		MSE_PSNR_SSIM(Image_src, Image_dst);
-		cout << "NLM修復画像 と 元画像" << endl;		// 実行確認用
+		cout << "NLM修復画像(デフォルト) と 元画像" << endl;		// 実行確認用
+		MSE_PSNR_SSIM(Image_src, Image_dst_NLMdef);
+		cout << "NLM修復画像(最適化) と 元画像" << endl;		// 実行確認用
 		MSE_PSNR_SSIM(Image_src, Image_dst_NLM);
 		cout << "MRF修復画像 と 元画像" << endl;		// 実行確認用
 		MSE_PSNR_SSIM(Image_src, Image_dst_MRF);
