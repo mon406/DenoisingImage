@@ -11,15 +11,36 @@ static double NoiseSigma = 30;	// ノイズの標準偏差（2乗で分散）
 // K 枚の劣化画像の生成 (ガウスノイズ付加)
 void GaussianNoiseImage(const int K, const Mat& ORIGINAL_IMG, vector<Mat>& NOISE_IMG) {
 	NOISE_IMG.clear();
+	Mat ORIGINAL_tmp;
+	ORIGINAL_IMG.copyTo(ORIGINAL_tmp);
 
 	for (int k = 0; k < K; k++) {
-		Mat noise_image_K;	// k番目の劣化画像
+		Mat noise_image_K = Mat(ORIGINAL_IMG.size(), ORIGINAL_IMG.type());	// k番目の劣化画像
 		Mat noise = Mat(ORIGINAL_IMG.size(), ORIGINAL_IMG.type());
 		unsigned int now_time = (unsigned int)time(NULL);			// 乱数パターンの初期値は現在時刻
 		srand(now_time);											// 乱数の種を設定(srand関数)
 		/* 毎回異なる乱数が取得できる */
-		randn(noise, NoiseMean, NoiseSigma);	// 乱数randn(生成Mat, 平均, 標準偏差)
-		noise_image_K = ORIGINAL_IMG + noise;
+		double ORIGINAL_average = CalcAverage(ORIGINAL_tmp);
+		//cout << (double)ORIGINAL_average << endl;	// 確認用
+		randn(noise, NoiseMean + ORIGINAL_average, NoiseSigma);	// 乱数randn(生成Mat, 平均, 標準偏差)
+		
+		int x, y, c;
+		int pix_index, number_tmp;
+#pragma omp parallel for private(x, c)
+		for (int y = 0; y < ORIGINAL_IMG.rows; y++) {
+			for (int x = 0; x < ORIGINAL_IMG.cols; x++) {
+				for (int c = 0; c < 3; c++) {
+					pix_index = (y * ORIGINAL_IMG.cols + x) * 3 + c;
+					number_tmp = (int)((double)ORIGINAL_IMG.data[pix_index] + (double)noise.data[pix_index] - (double)ORIGINAL_average);
+					if (number_tmp < 0) { number_tmp = 0; }
+					else if (number_tmp > MAX_INTENSE) { number_tmp = MAX_INTENSE; }
+					//cout << (int)ORIGINAL_IMG.data[pix_index] << " -> ";	// 確認用
+					noise_image_K.data[pix_index] = (uchar)number_tmp;
+					//cout << (int)noise_image_K.data[pix_index] << endl;	// 確認用
+				}
+			}
+		}
+		//noise_image_K = ORIGINAL_IMG + noise;
 		NOISE_IMG.push_back(noise_image_K);
 	}
 	cout << " ガウスノイズ : NoiseMean = " << NoiseMean << " , NoiseSigma = " << NoiseSigma << endl;	// 確認用

@@ -34,7 +34,7 @@ int MAX_INTENSE = 255;	// 最大色値
 int WIDTH;				// 入力画像の横幅（ピクセル数）
 int HEIGHT;				// 入力画像の縦幅（ピクセル数）
 int MAX_DATA;			// 入力画像の総ピクセル数
-int IMAGE_NUMBER = 1;	// 画像枚数 K
+int IMAGE_NUMBER = 0;	// 画像枚数 K
 
 /* 関数 */
 void Input_Image();			// 画像の入力
@@ -197,8 +197,11 @@ public:
 	Mat POSTERIOR;			// 事後分布
 	vector<Mat> LIKELIHOOD;	// 尤度
 	Mat averageVector;			// 平均ベクトル
+	vector<double> AverageVector;
 	Mat averageImage;			// 平均画像
+	vector<double> AverageImage;
 	Mat averageSquareImage;		// 2乗平均画像
+	vector<double> AverageSquareImage;
 	Mat eigenValue;				// グラフラプラシアンの固有値
 	vector<double> EigenValue;
 
@@ -235,6 +238,7 @@ GMM::GMM() {
 	LIKELIHOOD.clear();
 
 	POSTERIOR = Mat(Size(Image_dst.cols, Image_dst.rows), CV_64FC3);
+	POSTERIOR_Average = CalcAverage(Image_dst);
 #pragma omp parallel for private(x, c)
 	for (GMMy = 0; GMMy < Image_dst.rows; GMMy++) {
 		for (GMMx = 0; GMMx < Image_dst.cols; GMMx++) {
@@ -247,7 +251,10 @@ GMM::GMM() {
 
 	averageVector = Mat(Size(GMM_XSIZE, GMM_YSIZE), CV_64FC3);
 	averageImage = Mat(Size(GMM_XSIZE, GMM_YSIZE), CV_64FC3);
+	AverageVector.clear();
+	AverageImage.clear();
 	averageSquareImage = Mat(Size(GMM_XSIZE, GMM_YSIZE), CV_64FC3);
+	AverageSquareImage.clear();
 	eigenValue = Mat(Size(GMM_XSIZE, GMM_YSIZE), CV_64FC3);
 	EigenValue.clear();
 
@@ -349,6 +356,26 @@ void GMM::CreateDoubleAverageImageMat() {
 	//doubleMatCentralization(averageImage);
 
 	averageImage.copyTo(averageVector);
+	POSTERIOR_Average = averageImage_Average;
+
+	AverageVector.clear();
+	AverageImage.clear();
+	double pix_num = CalcAverage(averageVector);;
+	for (GMMy = 0; GMMy < GMM_YSIZE; GMMy++) {
+		for (GMMx = 0; GMMx < GMM_XSIZE; GMMx++) {
+			for (GMMc = 0; GMMc < 3; GMMc++) {
+				GMM_index = (GMMy * GMM_XSIZE + GMMx) * 3 + GMMc;
+				pix[0] = (double)averageImage.data[GMM_index];
+				pix[1] = (double)(pix[0] - averageImage_Average);
+				pix[2] = (double)(pix[0] - pix_num);
+
+				//cout << " Image_original : " << (double)pix[0] << endl;	// 確認用
+				AverageImage.push_back(pix[1]);
+				AverageVector.push_back(pix[2]);
+				//cout << " Image:" << (double)AverageImage[GMM_index] << " , vector:" << (double)AverageVector[GMM_index] << endl;	// 確認用
+			}
+		}
+	}
 }
 void GMM::CreateDoubleAverageSquareImageMat() {
 	double pix[3];
@@ -371,6 +398,19 @@ void GMM::CreateDoubleAverageSquareImageMat() {
 
 			for (GMMc = 0; GMMc < 3; GMMc++) {
 				averageSquareImage.data[GMM_index + GMMc] = (double)pix[GMMc];
+			}
+		}
+	}
+
+	AverageSquareImage.clear();
+	double pix_num;
+	for (GMMy = 0; GMMy < GMM_YSIZE; GMMy++) {
+		for (GMMx = 0; GMMx < GMM_XSIZE; GMMx++) {
+			for (GMMc = 0; GMMc < 3; GMMc++) {
+				GMM_index = (GMMy * GMM_XSIZE + GMMx) * 3 + GMMc;
+				pix_num = (double)averageImage.data[GMM_index] - (double)averageImage_Average;
+				pix_num = (double)pow(pix_num, 2);
+				AverageSquareImage.push_back(pix_num);
 			}
 		}
 	}

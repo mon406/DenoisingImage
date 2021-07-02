@@ -6,13 +6,13 @@
 
 /* MRFのパラメータ */
 double CONVERGE_H = 1.0e-8;		// パラメータ推定の収束判定値
-int MAXIteration_H = 500;		// パラメータ推定の最大反復回数
-const double LearningRate_Alpha_H = 1.0e-5;		// 学習率
-const double LearningRate_Lambda_H = 1.0e-10;
-const double LearningRate_Gamma_H = 1.0e-7;
-//const double LearningRate_Alpha_H = 1.0e-6;		// 学習率
-//const double LearningRate_Lambda_H = 1.0e-12;
-//const double LearningRate_Gamma_H = 1.0e-9;
+int MAXIteration_H = 100;		// パラメータ推定の最大反復回数
+//const double LearningRate_Alpha_H = 1.0e-5;		// 学習率
+//const double LearningRate_Lambda_H = 1.0e-10;
+//const double LearningRate_Gamma_H = 1.0e-7;
+const double LearningRate_Alpha_H = 1.0e-6;		// 学習率
+const double LearningRate_Lambda_H = 1.0e-12;
+const double LearningRate_Gamma_H = 1.0e-9;
 double SIGMA_HMRF_H = 35;		// パラメータ
 double ALPHA_HMRF_H = 1.0e-4;
 double LAMBDA_HMRF_H = 1.0e-7;
@@ -347,9 +347,12 @@ GMM_HMRF::GMM_HMRF(int K, int max_intense, Mat& ImageDst, vector<Mat> likelihood
 	LIKELIHOOD.clear();
 	LIKELIHOOD_Average.clear();
 	Mat lilelihood_tmp;
+	double averageLikelihood;
 #pragma omp parallel for private(MRFy, MRFx, MRFc)
 	for (imgK = 0; imgK < imageK; imgK++) {
 		lilelihood_tmp = Mat(Size(ImageDst.cols, ImageDst.rows), CV_64FC3);
+		averageLikelihood = CalcAverage(likelihood[imgK]);
+		LIKELIHOOD_Average.push_back(averageLikelihood);
 		for (HMRFy = 0; HMRFy < ImageDst.rows; HMRFy++) {
 			for (HMRFx = 0; HMRFx < ImageDst.cols; HMRFx++) {
 				for (HMRFc = 0; HMRFc < 3; HMRFc++) {
@@ -359,12 +362,10 @@ GMM_HMRF::GMM_HMRF(int K, int max_intense, Mat& ImageDst, vector<Mat> likelihood
 			}
 		}
 		LIKELIHOOD.push_back(lilelihood_tmp);
-		
-		double Average = CalcAverage(lilelihood_tmp);
-		LIKELIHOOD_Average.push_back(Average);
 	}
 
 	POSTERIOR = Mat(Size(ImageDst.cols, ImageDst.rows), CV_64FC3);
+	POSTERIOR_Average = CalcAverage(ImageDst);
 #pragma omp parallel for private(MRFx, MRFc)
 	for (HMRFy = 0; HMRFy < ImageDst.rows; HMRFy++) {
 		for (HMRFx = 0; HMRFx < ImageDst.cols; HMRFx++) {
@@ -375,15 +376,27 @@ GMM_HMRF::GMM_HMRF(int K, int max_intense, Mat& ImageDst, vector<Mat> likelihood
 		}
 	}
 
+	AverageVector.clear();
+	AverageImage.clear();
 	averageVector = Mat::zeros(Size(GMM_XSIZE, GMM_YSIZE), CV_64FC3);
 	averageVector2 = Mat::zeros(Size(GMM_XSIZE, GMM_YSIZE), CV_64FC3);
-	averageVec2.clear();
+	//averageVec2.clear();
 	averageImage = Mat::zeros(Size(GMM_XSIZE, GMM_YSIZE), CV_64FC3);
 	averageSquareImage = Mat(Size(GMM_XSIZE, GMM_YSIZE), CV_64FC3);
 	eigenValue = Mat(Size(GMM_XSIZE, GMM_YSIZE), CV_64FC3);
 	EigenValue.clear();
 	MapW = Mat(Size(GMM_XSIZE, GMM_YSIZE), CV_64FC3);
 	Map_W.clear();
+
+	double doubleZero = 0.0;
+#pragma omp parallel for private(MRFx, MRFc)
+	for (HMRFy = 0; HMRFy < ImageDst.rows; HMRFy++) {
+		for (HMRFx = 0; HMRFx < ImageDst.cols; HMRFx++) {
+			for (HMRFc = 0; HMRFc < 3; HMRFc++) {
+				averageVec2.push_back(doubleZero);
+			}
+		}
+	}
 
 	GMM_gamma = gamma;
 	GMM_lambda = lambda;
@@ -402,7 +415,8 @@ void GMM_HMRF::CreateOutput() {
 		for (HMRFx = 0; HMRFx < GMM_XSIZE; HMRFx++) {
 			for (HMRFc = 0; HMRFc < 3; HMRFc++) {
 				HMRF_index = (HMRFy * GMM_XSIZE + HMRFx) * 3 + HMRFc;
-				color_checker = (double)(averageVector.data[HMRF_index]);
+				//color_checker = (double)averageVector.data[HMRF_index];
+				color_checker = ((double)AverageVector[HMRF_index] + (double)averageImage_Average);
 				if (color_checker < 0) {
 					POSTERIOR.data[HMRF_index] = (double)0;
 				}
@@ -424,30 +438,48 @@ void GMM_HMRF::MaximumPosteriorEstimation() {
 	double numer[3], denom, ave[3], Yi[3];
 	double numer2[3], denom2, ave2[3];
 	int adjacent_pix_num;
-	int col_index;
+	int col_index, col_index2;
 
-	averageVec2.clear();
 	// 確率分布の初期化
-	Mat RandomMap_B = Mat(averageImage.size(), CV_64F, Scalar::all(0.0));	// 確率変数m
-	Mat RandomMap_G = Mat(averageImage.size(), CV_64F, Scalar::all(0.0));
-	Mat RandomMap_R = Mat(averageImage.size(), CV_64F, Scalar::all(0.0));
-	Mat RandomMap_B2 = Mat(averageImage.size(), CV_64F, Scalar::all(0.0));	// 確率変数myu
-	Mat RandomMap_G2 = Mat(averageImage.size(), CV_64F, Scalar::all(0.0));
-	Mat RandomMap_R2 = Mat(averageImage.size(), CV_64F, Scalar::all(0.0));
+	//Mat RandomMap_B = Mat(averageImage.size(), CV_64F, Scalar::all(0.0));	// 確率変数m
+	//Mat RandomMap_G = Mat(averageImage.size(), CV_64F, Scalar::all(0.0));
+	//Mat RandomMap_R = Mat(averageImage.size(), CV_64F, Scalar::all(0.0));
+	//Mat RandomMap_B2 = Mat(averageImage.size(), CV_64F, Scalar::all(0.0));	// 確率変数myu
+	//Mat RandomMap_G2 = Mat(averageImage.size(), CV_64F, Scalar::all(0.0));
+	//Mat RandomMap_R2 = Mat(averageImage.size(), CV_64F, Scalar::all(0.0));
 	//averageImage.copyTo(averageVector);	 // 事後分布の平均ベクトル初期化
+	vector<double> RandomMap_B;	// 確率変数m
+	vector<double> RandomMap_G;
+	vector<double> RandomMap_R;
+	vector<double> RandomMap_B2;	// 確率変数myu
+	vector<double> RandomMap_G2;
+	vector<double> RandomMap_R2;
+#pragma omp parallel for private(x)
+	for (y = 0; y < GMM_YSIZE; y++) {
+		for (x = 0; x < GMM_XSIZE; x++) {
+			col_index = (y * GMM_XSIZE + x) * 3;
+			RandomMap_B.push_back(AverageVector[col_index]);
+			col_index++;
+			RandomMap_G.push_back(AverageVector[col_index]);
+			col_index++;
+			RandomMap_R.push_back(AverageVector[col_index]);
+			RandomMap_B2.push_back(averageVec2[col_index]);
+			RandomMap_G2.push_back(averageVec2[col_index]);
+			RandomMap_R2.push_back(averageVec2[col_index]);
+			//cout << (double)AverageImage[col_index + 0] << endl;	// 確認用
+		}
+	}
 
 	for (int count = 0; count < MaxIteration_HMRF_H; count++) {
 		errorConvergence = 0.0;
 #pragma omp parallel for private(x, numer, denom, ave, numer2, denom2, ave2, c) reduction(+ : errorConvergence)
 		for (y = 0; y < GMM_YSIZE; y++) {
 			for (x = 0; x < GMM_XSIZE; x++) {
-				col_index = (y * GMM_XSIZE + x) * 3;
 				for (int c = 0; c < 3; c++) {
-					Yi[c] = (double)averageImage.data[col_index + c];
+					col_index = (y * GMM_XSIZE + x) * 3 + c;
+					//Yi[c] = (double)averageImage.data[col_index + c];
+					Yi[c] = (double)AverageImage[col_index];
 				}
-				//Yi[2] = ((double)(Yi[2] * 2.0) / (double)imageMAX_INTENSE) - 1.0;	// (-1)~1 正規化
-				//Yi[1] = ((double)(Yi[1] * 2.0) / (double)imageMAX_INTENSE) - 1.0;
-				//Yi[0] = ((double)(Yi[0] * 2.0) / (double)imageMAX_INTENSE) - 1.0;
 				for (int c = 0; c < 3; c++) {
 					numer[c] = (double)(Yi[c] * (double)imageK / GMM_sigma2);
 					numer2[c] = 0.0;
@@ -457,55 +489,87 @@ void GMM_HMRF::MaximumPosteriorEstimation() {
 				adjacent_pix_num = 0;
 
 				if (x > 0) {
-					numer[2] += GMM_alpha * (double)RandomMap_R.at<double>(y, x - 1);
+					/*numer[2] += GMM_alpha * (double)RandomMap_R.at<double>(y, x - 1);
 					numer[1] += GMM_alpha * (double)RandomMap_G.at<double>(y, x - 1);
 					numer[0] += GMM_alpha * (double)RandomMap_B.at<double>(y, x - 1);
 					numer2[2] += GMM_alpha * ((double)RandomMap_R2.at<double>(y, x - 1) - (double)RandomMap_R.at<double>(y, x - 1));
 					numer2[1] += GMM_alpha * ((double)RandomMap_G2.at<double>(y, x - 1) - (double)RandomMap_G.at<double>(y, x - 1));
-					numer2[0] += GMM_alpha * ((double)RandomMap_B2.at<double>(y, x - 1) - (double)RandomMap_B.at<double>(y, x - 1));
+					numer2[0] += GMM_alpha * ((double)RandomMap_B2.at<double>(y, x - 1) - (double)RandomMap_B.at<double>(y, x - 1));*/
+					col_index2 = y * GMM_XSIZE + (x - 1);
+					numer[2] += GMM_alpha * (double)RandomMap_R[col_index2];
+					numer[1] += GMM_alpha * (double)RandomMap_G[col_index2];
+					numer[0] += GMM_alpha * (double)RandomMap_B[col_index2];
+					numer2[2] += GMM_alpha * ((double)RandomMap_R2[col_index2] - (double)RandomMap_R[col_index2]);
+					numer2[1] += GMM_alpha * ((double)RandomMap_G2[col_index2] - (double)RandomMap_G[col_index2]);
+					numer2[0] += GMM_alpha * ((double)RandomMap_B2[col_index2] - (double)RandomMap_B[col_index2]);
 					denom += GMM_alpha;
 					denom2 += GMM_alpha;
 					adjacent_pix_num++;
 				}
 				if (x + 1 < GMM_XSIZE)
 				{
-					numer[2] += GMM_alpha * (double)RandomMap_R.at<double>(y, x + 1);
+					/*numer[2] += GMM_alpha * (double)RandomMap_R.at<double>(y, x + 1);
 					numer[1] += GMM_alpha * (double)RandomMap_G.at<double>(y, x + 1);
 					numer[0] += GMM_alpha * (double)RandomMap_B.at<double>(y, x + 1);
 					numer2[2] += GMM_alpha * ((double)RandomMap_R2.at<double>(y, x + 1) - (double)RandomMap_R.at<double>(y, x + 1));
 					numer2[1] += GMM_alpha * ((double)RandomMap_G2.at<double>(y, x + 1) - (double)RandomMap_G.at<double>(y, x + 1));
-					numer2[0] += GMM_alpha * ((double)RandomMap_B2.at<double>(y, x + 1) - (double)RandomMap_B.at<double>(y, x + 1));
+					numer2[0] += GMM_alpha * ((double)RandomMap_B2.at<double>(y, x + 1) - (double)RandomMap_B.at<double>(y, x + 1));*/
+					col_index2 = y * GMM_XSIZE + (x + 1);
+					numer[2] += GMM_alpha * (double)RandomMap_R[col_index2];
+					numer[1] += GMM_alpha * (double)RandomMap_G[col_index2];
+					numer[0] += GMM_alpha * (double)RandomMap_B[col_index2];
+					numer2[2] += GMM_alpha * ((double)RandomMap_R2[col_index2] - (double)RandomMap_R[col_index2]);
+					numer2[1] += GMM_alpha * ((double)RandomMap_G2[col_index2] - (double)RandomMap_G[col_index2]);
+					numer2[0] += GMM_alpha * ((double)RandomMap_B2[col_index2] - (double)RandomMap_B[col_index2]);
 					denom += GMM_alpha;
 					denom2 += GMM_alpha;
 					adjacent_pix_num++;
 				}
 				if (y > 0)
 				{
-					numer[2] += GMM_alpha * (double)RandomMap_R.at<double>(y - 1, x);
+					/*numer[2] += GMM_alpha * (double)RandomMap_R.at<double>(y - 1, x);
 					numer[1] += GMM_alpha * (double)RandomMap_G.at<double>(y - 1, x);
 					numer[0] += GMM_alpha * (double)RandomMap_B.at<double>(y - 1, x);
 					numer2[2] += GMM_alpha * ((double)RandomMap_R2.at<double>(y - 1, x) - (double)RandomMap_R.at<double>(y - 1, x));
 					numer2[1] += GMM_alpha * ((double)RandomMap_G2.at<double>(y - 1, x) - (double)RandomMap_G.at<double>(y - 1, x));
-					numer2[0] += GMM_alpha * ((double)RandomMap_B2.at<double>(y - 1, x) - (double)RandomMap_B.at<double>(y - 1, x));
+					numer2[0] += GMM_alpha * ((double)RandomMap_B2.at<double>(y - 1, x) - (double)RandomMap_B.at<double>(y - 1, x));*/
+					col_index2 = (y - 1) * GMM_XSIZE + x;
+					numer[2] += GMM_alpha * (double)RandomMap_R[col_index2];
+					numer[1] += GMM_alpha * (double)RandomMap_G[col_index2];
+					numer[0] += GMM_alpha * (double)RandomMap_B[col_index2];
+					numer2[2] += GMM_alpha * ((double)RandomMap_R2[col_index2] - (double)RandomMap_R[col_index2]);
+					numer2[1] += GMM_alpha * ((double)RandomMap_G2[col_index2] - (double)RandomMap_G[col_index2]);
+					numer2[0] += GMM_alpha * ((double)RandomMap_B2[col_index2] - (double)RandomMap_B[col_index2]);
 					denom += GMM_alpha;
 					denom2 += GMM_alpha;
 					adjacent_pix_num++;
 				}
 				if (y + 1 < GMM_YSIZE)
 				{
-					numer[2] += GMM_alpha * (double)RandomMap_R.at<double>(y + 1, x);
+					/*numer[2] += GMM_alpha * (double)RandomMap_R.at<double>(y + 1, x);
 					numer[1] += GMM_alpha * (double)RandomMap_G.at<double>(y + 1, x);
 					numer[0] += GMM_alpha * (double)RandomMap_B.at<double>(y + 1, x);
 					numer2[2] += GMM_alpha * ((double)RandomMap_R2.at<double>(y + 1, x) - (double)RandomMap_R.at<double>(y + 1, x));
 					numer2[1] += GMM_alpha * ((double)RandomMap_G2.at<double>(y + 1, x) - (double)RandomMap_G.at<double>(y + 1, x));
-					numer2[0] += GMM_alpha * ((double)RandomMap_B2.at<double>(y + 1, x) - (double)RandomMap_B.at<double>(y + 1, x));
+					numer2[0] += GMM_alpha * ((double)RandomMap_B2.at<double>(y + 1, x) - (double)RandomMap_B.at<double>(y + 1, x));*/
+					col_index2 = (y + 1) * GMM_XSIZE + x;
+					numer[2] += GMM_alpha * (double)RandomMap_R[col_index2];
+					numer[1] += GMM_alpha * (double)RandomMap_G[col_index2];
+					numer[0] += GMM_alpha * (double)RandomMap_B[col_index2];
+					numer2[2] += GMM_alpha * ((double)RandomMap_R2[col_index2] - (double)RandomMap_R[col_index2]);
+					numer2[1] += GMM_alpha * ((double)RandomMap_G2[col_index2] - (double)RandomMap_G[col_index2]);
+					numer2[0] += GMM_alpha * ((double)RandomMap_B2[col_index2] - (double)RandomMap_B[col_index2]);
 					denom += GMM_alpha;
 					denom2 += GMM_alpha;
 					adjacent_pix_num++;
 				}
-				numer2[2] += ((double)GMM_lambda + GMM_alpha * (double)adjacent_pix_num) * (double)RandomMap_R.at<double>(y, x);
+				/*numer2[2] += ((double)GMM_lambda + GMM_alpha * (double)adjacent_pix_num) * (double)RandomMap_R.at<double>(y, x);
 				numer2[1] += ((double)GMM_lambda + GMM_alpha * (double)adjacent_pix_num) * (double)RandomMap_G.at<double>(y, x);
-				numer2[0] += ((double)GMM_lambda + GMM_alpha * (double)adjacent_pix_num) * (double)RandomMap_B.at<double>(y, x);
+				numer2[0] += ((double)GMM_lambda + GMM_alpha * (double)adjacent_pix_num) * (double)RandomMap_B.at<double>(y, x);*/
+				col_index2 = y * GMM_XSIZE + x;
+				numer2[2] += ((double)GMM_lambda + GMM_alpha * (double)adjacent_pix_num) * (double)RandomMap_R[col_index2];
+				numer2[1] += ((double)GMM_lambda + GMM_alpha * (double)adjacent_pix_num) * (double)RandomMap_G[col_index2];
+				numer2[0] += ((double)GMM_lambda + GMM_alpha * (double)adjacent_pix_num) * (double)RandomMap_B[col_index2];
 
 				for (c = 0; c < 3; c++) {
 					ave2[c] = numer2[c] / denom2;
@@ -513,19 +577,28 @@ void GMM_HMRF::MaximumPosteriorEstimation() {
 					ave[c] = numer[c] / denom;
 					switch (c) {
 					case 0:
-						errorConvergence += fabs(RandomMap_B.at<double>(y, x) - (double)ave[c]);
+						/*errorConvergence += fabs(RandomMap_B.at<double>(y, x) - (double)ave[c]);
 						RandomMap_B.at<double>(y, x) = ave[c];
-						RandomMap_B2.at<double>(y, x) = ave2[c];
+						RandomMap_B2.at<double>(y, x) = ave2[c];*/
+						errorConvergence += fabs(RandomMap_B[col_index2] - (double)ave[c]);
+						RandomMap_B[col_index2] = ave[c];
+						RandomMap_B2[col_index2] = ave2[c];
 						break;
 					case 1:
-						errorConvergence += fabs(RandomMap_G.at<double>(y, x) - (double)ave[c]);
+						/*errorConvergence += fabs(RandomMap_G.at<double>(y, x) - (double)ave[c]);
 						RandomMap_G.at<double>(y, x) = ave[c];
-						RandomMap_G2.at<double>(y, x) = ave2[c];
+						RandomMap_G2.at<double>(y, x) = ave2[c];*/
+						errorConvergence += fabs(RandomMap_G[col_index2] - (double)ave[c]);
+						RandomMap_G[col_index2] = ave[c];
+						RandomMap_G2[col_index2] = ave2[c];
 						break;
 					case 2:
-						errorConvergence += fabs(RandomMap_R.at<double>(y, x) - (double)ave[c]);
+						/*errorConvergence += fabs(RandomMap_R.at<double>(y, x) - (double)ave[c]);
 						RandomMap_R.at<double>(y, x) = ave[c];
-						RandomMap_R2.at<double>(y, x) = ave2[c];
+						RandomMap_R2.at<double>(y, x) = ave2[c];*/
+						errorConvergence += fabs(RandomMap_R[col_index2] - (double)ave[c]);
+						RandomMap_R[col_index2] = ave[c];
+						RandomMap_R2[col_index2] = ave2[c];
 						break;
 					default:
 						break;
@@ -542,30 +615,33 @@ void GMM_HMRF::MaximumPosteriorEstimation() {
 	}
 
 	// 出力画像
+	AverageVector.clear();
+	averageVec2.clear();
 	double double_ave[3], double_ave2[3];
 #pragma omp parallel for private(x, c)
 	for (y = 0; y < GMM_YSIZE; y++) {
 		for (x = 0; x < GMM_XSIZE; x++) {
 			col_index = (y * GMM_XSIZE + x) * 3;
+			col_index2 = y * GMM_XSIZE + x;
 			for (int c = 0; c < 3; c++) {
 				switch (c) {
 				case 0:
-					double_ave[c] = (double)RandomMap_B.at<double>(y, x);
-					double_ave2[c] = (double)RandomMap_B2.at<double>(y, x);
-					//double_ave[c] = ((double)((double)RandomMap_B.at<double>(y, x) + 1.0) / (double)2.0) * (double)imageMAX_INTENSE;
-					//double_ave2[c] = ((double)((double)RandomMap_B2.at<double>(y, x) + 1.0) / (double)2.0) * (double)imageMAX_INTENSE;
+					/*double_ave[c] = (double)RandomMap_B.at<double>(y, x);
+					double_ave2[c] = (double)RandomMap_B2.at<double>(y, x);*/
+					double_ave[c] = (double)RandomMap_B[col_index2];
+					double_ave2[c] = (double)RandomMap_B2[col_index2];
 					break;
 				case 1:
-					double_ave[c] = (double)RandomMap_G.at<double>(y, x);
-					double_ave2[c] = (double)RandomMap_G2.at<double>(y, x);
-					//double_ave[c] = ((double)((double)RandomMap_G.at<double>(y, x) + 1.0) / (double)2.0) * (double)imageMAX_INTENSE;
-					//double_ave2[c] = ((double)((double)RandomMap_G2.at<double>(y, x) + 1.0) / (double)2.0) * (double)imageMAX_INTENSE;
+					/*double_ave[c] = (double)RandomMap_G.at<double>(y, x);
+					double_ave2[c] = (double)RandomMap_G2.at<double>(y, x);*/
+					double_ave[c] = (double)RandomMap_G[col_index2];
+					double_ave2[c] = (double)RandomMap_G2[col_index2];
 					break;
 				case 2:
-					double_ave[c] = (double)RandomMap_R.at<double>(y, x);
-					double_ave2[c] = (double)RandomMap_R2.at<double>(y, x);
-					//double_ave[c] = ((double)((double)RandomMap_R.at<double>(y, x) + 1.0) / (double)2.0) * (double)imageMAX_INTENSE;
-					//double_ave2[c] = ((double)((double)RandomMap_R2.at<double>(y, x) + 1.0) / (double)2.0) * (double)imageMAX_INTENSE;
+					/*double_ave[c] = (double)RandomMap_R.at<double>(y, x);
+					double_ave2[c] = (double)RandomMap_R2.at<double>(y, x);*/
+					double_ave[c] = (double)RandomMap_R[col_index2];
+					double_ave2[c] = (double)RandomMap_R2[col_index2];
 					break;
 				default:
 					double_ave[c] = 0.0;
@@ -574,11 +650,12 @@ void GMM_HMRF::MaximumPosteriorEstimation() {
 					break;
 				}
 
-				if (double_ave[c] < 0.0) { double_ave[c] = 0.0; }
-				else if (double_ave[c] > imageMAX_INTENSE) { double_ave[c] = imageMAX_INTENSE; }
+				/*if (double_ave[c] < 0.0) { double_ave[c] = 0.0; }
+				else if (double_ave[c] > imageMAX_INTENSE) { double_ave[c] = imageMAX_INTENSE; }*/
 
 				averageVector.data[col_index + c] = (double)double_ave[c];
 				averageVector2.data[col_index + c] = (double)double_ave2[c];
+				AverageVector.push_back(double_ave[c]);
 				averageVec2.push_back(double_ave2[c]);
 				//cout << " double_ave = " << (double)double_ave[2] << " , double_ave2 = " << (double)double_ave2[2] << endl;	// 確認用
 				//cout << " averageVector = " << (double)averageVector.data[col_index + c] << " , averageVector2 = " << (double)averageVector2.data[col_index + c] << endl;	// 確認用
@@ -596,13 +673,27 @@ void GMM_HMRF::MaximumMapWEstimation() {
 
 	double errorConvergence;
 	double numer[3], denom, ave[3], Yi[3];
-	int col_index;
+	int col_index, col_index2;
 
 	Map_W.clear();
 	// 確率分布の初期化
-	Mat RandomMap_B = Mat(averageImage.size(), CV_64F, Scalar::all(0.0));	// 確率変数w
-	Mat RandomMap_G = Mat(averageImage.size(), CV_64F, Scalar::all(0.0));
-	Mat RandomMap_R = Mat(averageImage.size(), CV_64F, Scalar::all(0.0));
+	//Mat RandomMap_B = Mat(averageImage.size(), CV_64F, Scalar::all(0.0));	// 確率変数w
+	//Mat RandomMap_G = Mat(averageImage.size(), CV_64F, Scalar::all(0.0));
+	//Mat RandomMap_R = Mat(averageImage.size(), CV_64F, Scalar::all(0.0));
+	vector<double> RandomMap_B;	// 確率変数w
+	vector<double> RandomMap_G;
+	vector<double> RandomMap_R;
+#pragma omp parallel for private(x)
+	for (y = 0; y < GMM_YSIZE; y++) {
+		for (x = 0; x < GMM_XSIZE; x++) {
+			col_index = (y * GMM_XSIZE + x) * 3;
+			RandomMap_B.push_back(AverageImage[col_index]);
+			col_index++;
+			RandomMap_G.push_back(AverageImage[col_index]);
+			col_index++;
+			RandomMap_R.push_back(AverageImage[col_index]);
+		}
+	}
 
 	for (int count = 0; count < MaxIteration_HMRF_H; count++) {
 		errorConvergence = 0;
@@ -613,9 +704,11 @@ void GMM_HMRF::MaximumMapWEstimation() {
 				/*Yi[0] = (double)averageVector2.data[col_index + 0];
 				Yi[1] = (double)averageVector2.data[col_index + 1];
 				Yi[2] = (double)averageVector2.data[col_index + 2];*/
-				Yi[0] = (double)averageVec2[col_index + 0];
-				Yi[1] = (double)averageVec2[(int)(col_index + 1)];
-				Yi[2] = (double)averageVec2[(int)(col_index + 2)];
+				Yi[0] = (double)averageVec2[col_index];
+				col_index++;
+				Yi[1] = (double)averageVec2[col_index];
+				col_index++;
+				Yi[2] = (double)averageVec2[col_index];
 				//cout << (double)Yi[2] << endl;	// 確認用
 				for (int c = 0; c < 3; c++) {
 					numer[c] = (double)Yi[c];
@@ -623,48 +716,71 @@ void GMM_HMRF::MaximumMapWEstimation() {
 				denom = GMM_lambda;
 
 				if (x > 0) {
-					numer[2] += GMM_alpha * (double)RandomMap_R.at<double>(y, x - 1);
+					/*numer[2] += GMM_alpha * (double)RandomMap_R.at<double>(y, x - 1);
 					numer[1] += GMM_alpha * (double)RandomMap_G.at<double>(y, x - 1);
-					numer[0] += GMM_alpha * (double)RandomMap_B.at<double>(y, x - 1);
+					numer[0] += GMM_alpha * (double)RandomMap_B.at<double>(y, x - 1);*/
+					col_index2 = y * GMM_XSIZE + (x - 1);
+					numer[2] += GMM_alpha * (double)RandomMap_R[col_index2];
+					numer[1] += GMM_alpha * (double)RandomMap_G[col_index2];
+					numer[0] += GMM_alpha * (double)RandomMap_B[col_index2];
 					denom += GMM_alpha;
 				}
 				if (x + 1 < GMM_XSIZE)
 				{
-					numer[2] += GMM_alpha * (double)RandomMap_R.at<double>(y, x + 1);
+					/*numer[2] += GMM_alpha * (double)RandomMap_R.at<double>(y, x + 1);
 					numer[1] += GMM_alpha * (double)RandomMap_G.at<double>(y, x + 1);
-					numer[0] += GMM_alpha * (double)RandomMap_B.at<double>(y, x + 1);
+					numer[0] += GMM_alpha * (double)RandomMap_B.at<double>(y, x + 1);*/
+					col_index2 = y * GMM_XSIZE + (x + 1);
+					numer[2] += GMM_alpha * (double)RandomMap_R[col_index2];
+					numer[1] += GMM_alpha * (double)RandomMap_G[col_index2];
+					numer[0] += GMM_alpha * (double)RandomMap_B[col_index2];
 					denom += GMM_alpha;
 				}
 				if (y > 0)
 				{
-					numer[2] += GMM_alpha * (double)RandomMap_R.at<double>(y - 1, x);
+					/*numer[2] += GMM_alpha * (double)RandomMap_R.at<double>(y - 1, x);
 					numer[1] += GMM_alpha * (double)RandomMap_G.at<double>(y - 1, x);
-					numer[0] += GMM_alpha * (double)RandomMap_B.at<double>(y - 1, x);
+					numer[0] += GMM_alpha * (double)RandomMap_B.at<double>(y - 1, x);*/
+					col_index2 = (y - 1) * GMM_XSIZE + x;
+					numer[2] += GMM_alpha * (double)RandomMap_R[col_index2];
+					numer[1] += GMM_alpha * (double)RandomMap_G[col_index2];
+					numer[0] += GMM_alpha * (double)RandomMap_B[col_index2];
 					denom += GMM_alpha;
 				}
 				if (y + 1 < GMM_YSIZE)
 				{
-					numer[2] += GMM_alpha * (double)RandomMap_R.at<double>(y + 1, x);
+					/*numer[2] += GMM_alpha * (double)RandomMap_R.at<double>(y + 1, x);
 					numer[1] += GMM_alpha * (double)RandomMap_G.at<double>(y + 1, x);
-					numer[0] += GMM_alpha * (double)RandomMap_B.at<double>(y + 1, x);
+					numer[0] += GMM_alpha * (double)RandomMap_B.at<double>(y + 1, x);*/
+					col_index2 = (y + 1) * GMM_XSIZE + x;
+					numer[2] += GMM_alpha * (double)RandomMap_R[col_index2];
+					numer[1] += GMM_alpha * (double)RandomMap_G[col_index2];
+					numer[0] += GMM_alpha * (double)RandomMap_B[col_index2];
 					denom += GMM_alpha;
 				}
 
 				for (c = 0; c < 3; c++) {
 					ave[c] = numer[c] / denom;
 					//cout << (double)ave[c] << endl;	// 確認用
+					col_index2 = y * GMM_XSIZE + x;
 					switch (c) {
 					case 0:
-						errorConvergence += fabs(RandomMap_B.at<double>(y, x) - (double)ave[c]);
-						RandomMap_B.at<double>(y, x) = ave[c];
+						/*errorConvergence += fabs(RandomMap_B.at<double>(y, x) - (double)ave[c]);
+						RandomMap_B.at<double>(y, x) = ave[c];*/
+						errorConvergence += fabs(RandomMap_B[col_index2] - (double)ave[c]);
+						RandomMap_B[col_index2] = ave[c];
 						break;
 					case 1:
-						errorConvergence += fabs(RandomMap_G.at<double>(y, x) - (double)ave[c]);
-						RandomMap_G.at<double>(y, x) = ave[c];
+						/*errorConvergence += fabs(RandomMap_G.at<double>(y, x) - (double)ave[c]);
+						RandomMap_G.at<double>(y, x) = ave[c];*/
+						errorConvergence += fabs(RandomMap_G[col_index2] - (double)ave[c]);
+						RandomMap_G[col_index2] = ave[c];
 						break;
 					case 2:
-						errorConvergence += fabs(RandomMap_R.at<double>(y, x) - (double)ave[c]);
-						RandomMap_R.at<double>(y, x) = ave[c];
+						/*errorConvergence += fabs(RandomMap_R.at<double>(y, x) - (double)ave[c]);
+						RandomMap_R.at<double>(y, x) = ave[c];*/
+						errorConvergence += fabs(RandomMap_R[col_index2] - (double)ave[c]);
+						RandomMap_R[col_index2] = ave[c];
 						break;
 					default:
 						break;
@@ -686,16 +802,20 @@ void GMM_HMRF::MaximumMapWEstimation() {
 	for (y = 0; y < GMM_YSIZE; y++) {
 		for (x = 0; x < GMM_XSIZE; x++) {
 			col_index = (y * GMM_XSIZE + x) * 3;
+			col_index2 = y * GMM_XSIZE + x;
 			for (int c = 0; c < 3; c++) {
 				switch (c) {
 				case 0:
-					double_ave[c] = (double)RandomMap_B.at<double>(y, x);
+					//double_ave[c] = (double)RandomMap_B.at<double>(y, x);
+					double_ave[c] = (double)RandomMap_B[col_index2];
 					break;
 				case 1:
-					double_ave[c] = (double)RandomMap_G.at<double>(y, x);
+					//double_ave[c] = (double)RandomMap_G.at<double>(y, x);
+					double_ave[c] = (double)RandomMap_G[col_index2];
 					break;
 				case 2:
-					double_ave[c] = (double)RandomMap_R.at<double>(y, x);
+					//double_ave[c] = (double)RandomMap_R.at<double>(y, x);
+					double_ave[c] = (double)RandomMap_R[col_index2];
 					break;
 				default:
 					double_ave[c] = 0.0;
@@ -723,7 +843,7 @@ void GMM_HMRF::EstimatedParameter(double converge, int Max_Iteration) {
 	const int Iteration_BPstep = 1/*Max_Iteration*/;	// 最大反復回数
 	const int Iteration_Estimate = 10/*Max_Iteration*/;
 	const double eps_BPstep = 0.1/*converge*/;			// 収束判定値
-	const double eps_Estimate = 1.0e-9/*converge*/;
+	const double eps_Estimate = 1.0e-3/*converge*/;
 
 	double gamma_old, lambda_old, sigma2_old, alpha_old;
 	double grad_lambda, grad_alpha, grad_gamma;
@@ -743,12 +863,14 @@ void GMM_HMRF::EstimatedParameter(double converge, int Max_Iteration) {
 
 	gamma_old = GMM_gamma; lambda_old = GMM_lambda; sigma2_old = GMM_sigma2; alpha_old = GMM_alpha;  // パラメータ_old初期化
 	averageImage.copyTo(averageVector);	 // 事後分布の平均ベクトル初期化
+	AverageVector.clear();
 #pragma omp parallel for private(x, c)
 	for (y = 0; y < GMM_YSIZE; y++) {
 		for (x = 0; x < GMM_XSIZE; x++) {
 			for (c = 0; c < 3; c++) {
 				pix_index = (y * GMM_XSIZE + x) * 3 + c;
-				calc_function1.data[pix_index] = 0.0;	// 関数1 初期化
+				calc_function1.data[pix_index] = 0.0;				// 関数1 初期化
+				AverageVector.push_back(AverageImage[pix_index]);	// 事後分布の初期
 			}
 		}
 	}
@@ -776,9 +898,11 @@ void GMM_HMRF::EstimatedParameter(double converge, int Max_Iteration) {
 					//tmp2 += pow((double)(averageVector.data[pix_index] - averageImage.data[pix_index]), 2) / ((double)GMM_MAX_PIX * 3.0);
 					for (imgK = 0; imgK < imageK; imgK++) {
 						//tmp2 += pow((double)(LIKELIHOOD[imgK].data[pix_index] - averageImage.data[pix_index]), 2) / ((double)GMM_MAX_PIX * 3.0 * (double)imageK);
-						double TMP = (double)(LIKELIHOOD[imgK].data[pix_index] - LIKELIHOOD_Average[imgK]) - (double)(averageImage.data[pix_index] - averageImage_Average);
-						//cout << (double)TMP << "=" << (double)(LIKELIHOOD[imgK].data[pix_index] - LIKELIHOOD_Average[imgK]) << "-" << (double)(averageImage.data[pix_index] - averageImage_Average) << endl;	// 確認用
-						tmp2 += pow(TMP, 2) / ((double)GMM_MAX_PIX * 3.0 * (double)imageK);
+						double TMP = (double)(LIKELIHOOD[imgK].data[pix_index] - LIKELIHOOD_Average[imgK]) - (double)AverageImage[pix_index];
+						tmp2 += (double)pow(TMP, 2) / ((double)GMM_MAX_PIX * 3.0 * (double)imageK);
+						//double TMP = (double)(LIKELIHOOD[imgK].data[pix_index] - LIKELIHOOD_Average[imgK]) - (double)(averageImage.data[pix_index] - averageImage_Average);
+						////cout << (double)TMP << "=" << (double)(LIKELIHOOD[imgK].data[pix_index] - LIKELIHOOD_Average[imgK]) << "-" << (double)(averageImage.data[pix_index] - averageImage_Average) << endl;	// 確認用
+						//tmp2 += pow(TMP, 2) / ((double)GMM_MAX_PIX * 3.0 * (double)imageK);
 					}
 				}
 			}
@@ -811,15 +935,18 @@ void GMM_HMRF::EstimatedParameter(double converge, int Max_Iteration) {
 			//cout << "  grad_gamma=" << grad_gamma << " , grad_lambda=" << grad_lambda << " , grad_alpha=" << grad_alpha << endl;	// 確認用
 			
 			//grad_alpha2 = ((double)CalcFunction_alpha2(averageVector) / (double)imageK) + (((double)CalcFunction_alpha2(MapW) * (double)pow(GMM_gamma, 2)) / (double)imageK);
-			grad_alpha2 = ((double)CalcFunction_alpha2(averageVector) / (double)imageK) + (((double)CalcFunction_alpha3(GMM_XSIZE, GMM_YSIZE, Map_W) * (double)pow(GMM_gamma, 2)) / (double)imageK);
+			//grad_alpha2 = ((double)CalcFunction_alpha2(averageVector) / (double)imageK) + (((double)CalcFunction_alpha3(GMM_XSIZE, GMM_YSIZE, Map_W) * (double)pow(GMM_gamma, 2)) / (double)imageK);
+			grad_alpha2 = ((double)CalcFunction_alpha3(GMM_XSIZE, GMM_YSIZE, AverageVector) / (double)imageK) + (((double)CalcFunction_alpha3(GMM_XSIZE, GMM_YSIZE, Map_W) * (double)pow(GMM_gamma, 2)) / (double)imageK);
 			grad_lambda2 = 0.0, grad_gamma2 = 0.0;
 			for (y = 0; y < GMM_YSIZE; y++) {
 				for (x = 0; x < GMM_XSIZE; x++) {
 					for (c = 0; c < 3; c++) {
 						pix_index = (y * GMM_XSIZE + x) * 3 + c;
 						//grad_lambda2 += (double)(pow((double)averageVector.data[pix_index], 2) / (double)imageK) + ((double)(pow((double)MapW.data[pix_index], 2) * GMM_gamma) / (double)imageK);
-						grad_lambda2 += (double)(pow((double)averageVector.data[pix_index], 2) / (double)imageK) + ((double)(pow((double)Map_W[pix_index], 2) * GMM_gamma) / (double)imageK);
-						grad_gamma2 += (double)(pow((double)averageVector2.data[pix_index], 2) / (double)imageK);
+						//grad_lambda2 += (double)(pow((double)averageVector.data[pix_index], 2) / (double)imageK) + ((double)(pow((double)Map_W[pix_index], 2) * GMM_gamma) / (double)imageK);
+						grad_lambda2 += (double)(pow((double)AverageVector[pix_index], 2) / (double)imageK) + ((double)(pow((double)Map_W[pix_index], 2) * GMM_gamma) / (double)imageK);
+						//grad_gamma2 += (double)(pow((double)averageVector2.data[pix_index], 2) / (double)imageK);
+						grad_gamma2 += (double)(pow((double)averageVec2[pix_index], 2) / (double)imageK);
 					}
 				}
 			}
@@ -833,10 +960,10 @@ void GMM_HMRF::EstimatedParameter(double converge, int Max_Iteration) {
 			grad_alpha /= (double)3.0 * (double)GMM_MAX_PIX * (double)2.0;
 			grad_gamma /= (double)3.0 * (double)GMM_MAX_PIX * (double)2.0;
 
-			doubleIntensity = (double)imageMAX_INTENSE;
+			/*doubleIntensity = (double)imageMAX_INTENSE;
 			grad_gamma /= doubleIntensity;
 			grad_lambda /= (doubleIntensity * doubleIntensity);
-			grad_alpha /= doubleIntensity;
+			grad_alpha /= doubleIntensity;*/
 			//cout << " " << c_M << " : grad_gamma=" << grad_gamma << " , grad_lambda=" << grad_lambda << " , grad_alpha=" << grad_alpha << endl;	// 確認用
 
 			// 感受率伝搬
