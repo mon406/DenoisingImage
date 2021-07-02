@@ -461,12 +461,12 @@ void GMM_HMRF::MaximumPosteriorEstimation() {
 		for (x = 0; x < GMM_XSIZE; x++) {
 			col_index = (y * GMM_XSIZE + x) * 3;
 			RandomMap_B.push_back(AverageVector[col_index]);
+			RandomMap_B2.push_back(averageVec2[col_index]);
 			col_index++;
 			RandomMap_G.push_back(AverageVector[col_index]);
+			RandomMap_G2.push_back(averageVec2[col_index]);
 			col_index++;
 			RandomMap_R.push_back(AverageVector[col_index]);
-			RandomMap_B2.push_back(averageVec2[col_index]);
-			RandomMap_G2.push_back(averageVec2[col_index]);
 			RandomMap_R2.push_back(averageVec2[col_index]);
 			//cout << (double)AverageImage[col_index + 0] << endl;	// 確認用
 		}
@@ -483,10 +483,10 @@ void GMM_HMRF::MaximumPosteriorEstimation() {
 					Yi[c] = (double)AverageImage[col_index];
 				}
 				for (int c = 0; c < 3; c++) {
-					numer[c] = (double)(Yi[c] * (double)imageK / GMM_sigma2);
+					numer[c] = (double)Yi[c] * ((double)imageK / (double)GMM_sigma2);
 					numer2[c] = 0.0;
 				}
-				denom = GMM_lambda + ((double)imageK / GMM_sigma2);
+				denom = GMM_lambda + ((double)imageK / (double)GMM_sigma2);
 				denom2 = GMM_lambda + GMM_gamma;
 				adjacent_pix_num = 0;
 
@@ -574,9 +574,9 @@ void GMM_HMRF::MaximumPosteriorEstimation() {
 				numer2[0] += ((double)GMM_lambda + GMM_alpha * (double)adjacent_pix_num) * (double)RandomMap_B[col_index2];
 
 				for (c = 0; c < 3; c++) {
-					ave2[c] = numer2[c] / denom2;
-					numer[c] += ave2[c] * GMM_gamma;
-					ave[c] = numer[c] / denom;
+					ave2[c] = (double)numer2[c] / (double)denom2;
+					numer[c] += (double)ave2[c] * (double)GMM_gamma;
+					ave[c] = (double)numer[c] / (double)denom;
 					switch (c) {
 					case 0:
 						/*errorConvergence += fabs(RandomMap_B.at<double>(y, x) - (double)ave[c]);
@@ -911,7 +911,7 @@ void GMM_HMRF::EstimatedParameter(double converge, int Max_Iteration) {
 		}
 		//cout << " tmp3 = " << (double)tmp3 << endl;	// 確認用
 		tmp1 = (double)tmp3 / ((double)GMM_MAX_PIX * 3.0);
-		GMM_sigma2 = tmp1 + tmp2;
+		GMM_sigma2 = (double)(tmp1 + tmp2);
 		GMM_sigma = sqrt(GMM_sigma2);
 		cout << "sigma2=" << GMM_sigma2 << " , sigma=" << GMM_sigma << endl;	// 確認用
 
@@ -938,7 +938,10 @@ void GMM_HMRF::EstimatedParameter(double converge, int Max_Iteration) {
 			
 			//grad_alpha2 = ((double)CalcFunction_alpha2(averageVector) / (double)imageK) + (((double)CalcFunction_alpha2(MapW) * (double)pow(GMM_gamma, 2)) / (double)imageK);
 			//grad_alpha2 = ((double)CalcFunction_alpha2(averageVector) / (double)imageK) + (((double)CalcFunction_alpha3(GMM_XSIZE, GMM_YSIZE, Map_W) * (double)pow(GMM_gamma, 2)) / (double)imageK);
-			grad_alpha2 = ((double)CalcFunction_alpha3(GMM_XSIZE, GMM_YSIZE, AverageVector) / (double)imageK) + (((double)CalcFunction_alpha3(GMM_XSIZE, GMM_YSIZE, Map_W) * (double)pow(GMM_gamma, 2)) / (double)imageK);
+			grad_alpha2 = - (double)CalcFunction_alpha3(GMM_XSIZE, GMM_YSIZE, AverageVector) + ((double)CalcFunction_alpha3(GMM_XSIZE, GMM_YSIZE, Map_W) * (double)pow(GMM_gamma, 2));
+			//cout << "  grad_alpha2 = " << -(double)CalcFunction_alpha3(GMM_XSIZE, GMM_YSIZE, AverageVector) << " + " << (double)CalcFunction_alpha3(GMM_XSIZE, GMM_YSIZE, Map_W) * (double)pow(GMM_gamma, 2) << endl;	// 確認用
+			grad_alpha2 /= (double)imageK;
+			//cout << "              =" << grad_alpha2 << endl;	// 確認用
 			grad_lambda2 = 0.0, grad_gamma2 = 0.0;
 			for (y = 0; y < GMM_YSIZE; y++) {
 				for (x = 0; x < GMM_XSIZE; x++) {
@@ -946,7 +949,7 @@ void GMM_HMRF::EstimatedParameter(double converge, int Max_Iteration) {
 						pix_index = (y * GMM_XSIZE + x) * 3 + c;
 						//grad_lambda2 += (double)(pow((double)averageVector.data[pix_index], 2) / (double)imageK) + ((double)(pow((double)MapW.data[pix_index], 2) * GMM_gamma) / (double)imageK);
 						//grad_lambda2 += (double)(pow((double)averageVector.data[pix_index], 2) / (double)imageK) + ((double)(pow((double)Map_W[pix_index], 2) * GMM_gamma) / (double)imageK);
-						grad_lambda2 += (double)(pow((double)AverageVector[pix_index], 2) / (double)imageK) + ((double)(pow((double)Map_W[pix_index], 2) * GMM_gamma) / (double)imageK);
+						grad_lambda2 += - (double)(pow((double)AverageVector[pix_index], 2) / (double)imageK) + ((double)(pow((double)Map_W[pix_index], 2) * GMM_gamma) / (double)imageK);
 						//grad_gamma2 += (double)(pow((double)averageVector2.data[pix_index], 2) / (double)imageK);
 						grad_gamma2 += (double)(pow((double)averageVec2[pix_index], 2) / (double)imageK);
 					}
@@ -956,7 +959,7 @@ void GMM_HMRF::EstimatedParameter(double converge, int Max_Iteration) {
 
 			grad_lambda += grad_lambda2;
 			grad_alpha += grad_alpha2;
-			grad_gamma += grad_gamma2;
+			grad_gamma = grad_gamma2 - grad_gamma;
 
 			grad_lambda /= (double)3.0 * (double)GMM_MAX_PIX * (double)2.0;
 			grad_alpha /= (double)3.0 * (double)GMM_MAX_PIX * (double)2.0;
