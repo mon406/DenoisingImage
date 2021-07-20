@@ -53,7 +53,8 @@ int main() {
 		fastNlMeansDenoisingColored(Image_dst_average, Image_dst_NLMdef);
 		double best_h = (double)NoiseSigma / (double)sqrt(IMAGE_NUMBER);
 		cout << " best_h = " << (double)best_h << endl;
-		fastNlMeansDenoisingColored(Image_dst_average, Image_dst_NLM, best_h, 3, 7, 21);
+		//fastNlMeansDenoisingColored(Image_dst_average, Image_dst_NLM, best_h, 3, 7, 21);
+		fastNlMeansDenoisingColored(Image_dst_average, Image_dst_NLM, best_h, best_h, 7, 21);
 		cout << endl;
 
 		/* ‰æ‘œ‚Ì•]‰¿ */

@@ -74,7 +74,7 @@ void Inpainting_and_OutputToExcel() {
 		fastNlMeansDenoisingColored(Image_dst_average, Image_dst_NLMdef);
 		double best_h = (double)NoiseSigma / (double)sqrt(nowK);
 		cout << " best_h = " << (double)best_h << endl;
-		fastNlMeansDenoisingColored(Image_dst_average, Image_dst_NLM, best_h, 3, 7, 21);
+		fastNlMeansDenoisingColored(Image_dst_average, Image_dst_NLM, best_h, best_h, 7, 21);
 		End3 = clock();
 		Time_difference3 = (double)End3 - (double)Start3;
 		double time3 = static_cast<double>(Time_difference3) / CLOCKS_PER_SEC * 1000.0;
