@@ -34,81 +34,129 @@ void Inpainting_and_OutputToExcel() {
 	vector<Mat> K_Image_dst;		// k枚の劣化画像
 	int nowK = 1;
 	double resultMSE = 0.0, resultPSNR = 0.0, resultSSIM = 0.0;
+	double aveMSE1 = 0.0, avePSNR1 = 0.0, aveSSIM1 = 0.0;
+	double aveMSE2 = 0.0, avePSNR2 = 0.0, aveSSIM2 = 0.0;
+	double aveMSE3 = 0.0, avePSNR3 = 0.0, aveSSIM3 = 0.0;
+	double aveMSE4 = 0.0, avePSNR4 = 0.0, aveSSIM4 = 0.0;
+	double aveMSE5 = 0.0, avePSNR5 = 0.0, aveSSIM5 = 0.0;
+	double aveTIME1 = 0.0, aveTIME2 = 0.0;
 	cout << "#########################################################################" << endl;
 	for (int K_number = 0; K_number < 11; K_number++) {
-		/* ガウスノイズ付加 */
+		/* ノイズ画像枚数指定 */
 		K_Image_dst.clear();
 		nowK = IMAGE_NUM[K_number];
-		cout << nowK << "枚の劣化画像生成…" << endl;		// 実行確認用
-		GaussianNoiseImage(nowK, Image_src, K_Image_dst);
-		K_Image_dst[0].copyTo(Image_dst);
-		CreateAverageImage(nowK, Image_dst_average, K_Image_dst, MAX_INTENSE);	// 平均画像生成
-		Image_dst.copyTo(Image_dst_MRF);
-		Image_dst.copyTo(Image_dst_HMRF);
-		Image_dst.copyTo(Image_dst_NLM);
 
-		/* MRF(マルコフ確率場)によるノイズ除去 */
-		cout << "パラメータ推定あり(MRF)のノイズ除去…" << endl;	// 実行確認用
-		Start = clock();
-		DenoisingMRF(Image_dst_MRF, K_Image_dst, nowK, MAX_INTENSE);
-		End = clock();
-		Time_difference = (double)End - (double)Start;
-		double time = static_cast<double>(Time_difference) / CLOCKS_PER_SEC * 1000.0;
-		cout << "time : " << time << "[ms]" << endl;
-		cout << endl;
+		aveMSE1 = 0.0, avePSNR1 = 0.0, aveSSIM1 = 0.0;
+		aveMSE2 = 0.0, avePSNR2 = 0.0, aveSSIM2 = 0.0;
+		aveMSE3 = 0.0, avePSNR3 = 0.0, aveSSIM3 = 0.0;
+		aveMSE4 = 0.0, avePSNR4 = 0.0, aveSSIM4 = 0.0;
+		aveMSE5 = 0.0, avePSNR5 = 0.0, aveSSIM5 = 0.0;
+		aveTIME1 = 0.0, aveTIME2 = 0.0;
 
-		/* HMRF(階層型マルコフ確率場)によるノイズ除去 */
-		cout << "パラメータ推定あり(HMRF)のノイズ除去…" << endl;	// 実行確認用
-		Start2 = clock();
-		DenoisingHMRF(Image_dst_HMRF, K_Image_dst, nowK, MAX_INTENSE);
-		End2 = clock();
-		Time_difference2 = (double)End2 - (double)Start2;
-		double time2 = static_cast<double>(Time_difference2) / CLOCKS_PER_SEC * 1000.0;
-		cout << "time : " << time2 << "[ms]" << endl;
-		cout << endl;
+		for (int Do_number = 0; Do_number < DO_NUMBER; Do_number++) {
+			cout << "# Do_number=" << (int)Do_number << endl;		// 実行確認用
 
-		/* NonLocalMeansによるノイズ除去 */
-		cout << "Non-Local Meansのノイズ除去…" << endl;	// 実行確認用
-		Start3 = clock();
-		//void cv::fastNlMeansDenoisingColored(src, dst, h=3, hColor=3, templateWindowSize=7, searchWindowSize=21)
-		fastNlMeansDenoisingColored(Image_dst_average, Image_dst_NLMdef);
-		double best_h = (double)NoiseSigma / (double)sqrt(nowK);
-		cout << " best_h = " << (double)best_h << endl;
-		fastNlMeansDenoisingColored(Image_dst_average, Image_dst_NLM, best_h, best_h, 7, 21);
-		End3 = clock();
-		Time_difference3 = (double)End3 - (double)Start3;
-		double time3 = static_cast<double>(Time_difference3) / CLOCKS_PER_SEC * 1000.0;
-		cout << "time : " << time3 << "[ms]" << endl;
-		cout << endl;
+			/* ガウスノイズ付加 */
+			cout << nowK << "枚の劣化画像生成…" << endl;		// 実行確認用
+			GaussianNoiseImage(nowK, Image_src, K_Image_dst);
+			K_Image_dst[0].copyTo(Image_dst);
+			CreateAverageImage(nowK, Image_dst_average, K_Image_dst, MAX_INTENSE);	// 平均画像生成
+			Image_dst.copyTo(Image_dst_MRF);
+			Image_dst.copyTo(Image_dst_HMRF);
+			Image_dst.copyTo(Image_dst_NLM);
 
+			/* MRF(マルコフ確率場)によるノイズ除去 */
+			cout << "パラメータ推定あり(MRF)のノイズ除去…" << endl;	// 実行確認用
+			Start = clock();
+			DenoisingMRF(Image_dst_MRF, K_Image_dst, nowK, MAX_INTENSE);
+			End = clock();
+			Time_difference = (double)End - (double)Start;
+			double time = static_cast<double>(Time_difference) / CLOCKS_PER_SEC * 1000.0;
+			aveTIME1 += (double)time;
+			cout << "time : " << time << "[ms]" << endl;
+			cout << endl;
+
+			/* HMRF(階層型マルコフ確率場)によるノイズ除去 */
+			cout << "パラメータ推定あり(HMRF)のノイズ除去…" << endl;	// 実行確認用
+			Start2 = clock();
+			DenoisingHMRF(Image_dst_HMRF, K_Image_dst, nowK, MAX_INTENSE);
+			End2 = clock();
+			Time_difference2 = (double)End2 - (double)Start2;
+			double time2 = static_cast<double>(Time_difference2) / CLOCKS_PER_SEC * 1000.0;
+			aveTIME2 += (double)time2;
+			cout << "time : " << time2 << "[ms]" << endl;
+			cout << endl;
+
+			/* NonLocalMeansによるノイズ除去 */
+			cout << "Non-Local Meansのノイズ除去…" << endl;	// 実行確認用
+			Start3 = clock();
+			//void cv::fastNlMeansDenoisingColored(src, dst, h=3, hColor=3, templateWindowSize=7, searchWindowSize=21)
+			fastNlMeansDenoisingColored(Image_dst_average, Image_dst_NLMdef);
+			double best_h = (double)NoiseSigma / (double)sqrt(nowK);
+			cout << " best_h = " << (double)best_h << endl;
+			fastNlMeansDenoisingColored(Image_dst_average, Image_dst_NLM, best_h, best_h, 7, 21);
+			End3 = clock();
+			Time_difference3 = (double)End3 - (double)Start3;
+			double time3 = static_cast<double>(Time_difference3) / CLOCKS_PER_SEC * 1000.0;
+			cout << "time : " << time3 << "[ms]" << endl;
+			cout << endl;
+
+			/* 修復精度の評価 */
+			cout << "ノイズ画像 と 元画像" << endl;			// 実行確認用
+			MSE_PSNR_SSIM_Output(Image_src, Image_dst, resultMSE, resultPSNR, resultSSIM);
+			aveMSE1 += resultMSE, avePSNR1 += resultPSNR, aveSSIM1 += resultSSIM;
+
+			cout << "NLM修復画像 と 元画像" << endl;		// 実行確認用
+			MSE_PSNR_SSIM_Output(Image_src, Image_dst_NLM, resultMSE, resultPSNR, resultSSIM);
+			aveMSE2 += resultMSE, avePSNR2 += resultPSNR, aveSSIM2 += resultSSIM;
+
+			cout << "MRF修復画像 と 元画像" << endl;		// 実行確認用
+			MSE_PSNR_SSIM_Output(Image_src, Image_dst_MRF, resultMSE, resultPSNR, resultSSIM);
+			aveMSE3 += resultMSE, avePSNR3 += resultPSNR, aveSSIM3 += resultSSIM;
+
+			cout << "HMRF修復画像 と 元画像" << endl;		// 実行確認用
+			MSE_PSNR_SSIM_Output(Image_src, Image_dst_HMRF, resultMSE, resultPSNR, resultSSIM);
+			aveMSE4 += resultMSE, avePSNR4 += resultPSNR, aveSSIM4 += resultSSIM;
+
+			cout << "ノイズ平均画像 と 元画像" << endl;		// 実行確認用
+			MSE_PSNR_SSIM_Output(Image_src, Image_dst_average, resultMSE, resultPSNR, resultSSIM);
+			aveMSE5 += resultMSE, avePSNR5 += resultPSNR, aveSSIM5 += resultSSIM;
+
+			cout << "NLM修復画像(デフォルト) と 元画像" << endl;	// 実行確認用
+			MSE_PSNR_SSIM(Image_src, Image_dst_NLMdef);
+		}
 
 		/* Step2. データの書き込み */
 		fprintf(fp, "%d,", nowK);	//CSVファイルに保存
 
-		cout << "ノイズ画像 と 元画像" << endl;			// 実行確認用
-		MSE_PSNR_SSIM_Output(Image_src, Image_dst, resultMSE, resultPSNR, resultSSIM);
-		fprintf(fp, "%g,%g,%g,", resultMSE, resultPSNR, resultSSIM);		//CSVファイルに上書き保存
+		cout << "　　　　　　　　　 平均 : MSE  ,  PSNR  ,  SSIM" << endl;	// 実行確認用
+		cout << "ノイズ画像 と 元画像　　: ";
+		aveMSE1 /= (double)DO_NUMBER, avePSNR1 /= (double)DO_NUMBER, aveSSIM1 /= (double)DO_NUMBER;
+		fprintf(fp, "%g,%g,%g,", aveMSE1, avePSNR1, aveSSIM1);		//CSVファイルに上書き保存
+		cout << aveMSE1 << " , " << avePSNR1 << " , " << aveSSIM1 << endl;
 
-		cout << "NLM修復画像 と 元画像" << endl;		// 実行確認用
-		MSE_PSNR_SSIM_Output(Image_src, Image_dst_NLM, resultMSE, resultPSNR, resultSSIM);
-		fprintf(fp, "%g,%g,%g,", resultMSE, resultPSNR, resultSSIM);		//CSVファイルに上書き保存
+		cout << "NLM修復画像 と 元画像　　: ";
+		aveMSE2 /= (double)DO_NUMBER, avePSNR2 /= (double)DO_NUMBER, aveSSIM2 /= (double)DO_NUMBER;
+		fprintf(fp, "%g,%g,%g,", aveMSE2, avePSNR2, aveSSIM2);		//CSVファイルに上書き保存
+		cout << aveMSE2 << " , " << avePSNR2 << " , " << aveSSIM2 << endl;
 
-		cout << "MRF修復画像 と 元画像" << endl;		// 実行確認用
-		MSE_PSNR_SSIM_Output(Image_src, Image_dst_MRF, resultMSE, resultPSNR, resultSSIM);
-		fprintf(fp, "%g,%g,%g,", resultMSE, resultPSNR, resultSSIM);		//CSVファイルに上書き保存
+		cout << "MRF修復画像 と 元画像　　: ";
+		aveMSE3 /= (double)DO_NUMBER, avePSNR3 /= (double)DO_NUMBER, aveSSIM3 /= (double)DO_NUMBER;
+		fprintf(fp, "%g,%g,%g,", aveMSE3, avePSNR3, aveSSIM3);		//CSVファイルに上書き保存
+		cout << aveMSE3 << " , " << avePSNR3 << " , " << aveSSIM3 << endl;
 
-		cout << "HMRF修復画像 と 元画像" << endl;		// 実行確認用
-		MSE_PSNR_SSIM_Output(Image_src, Image_dst_HMRF, resultMSE, resultPSNR, resultSSIM);
-		fprintf(fp, "%g,%g,%g,", resultMSE, resultPSNR, resultSSIM);		//CSVファイルに上書き保存
+		cout << "HMRF修復画像 と 元画像　 : ";
+		aveMSE4 /= (double)DO_NUMBER, avePSNR4 /= (double)DO_NUMBER, aveSSIM4 /= (double)DO_NUMBER;
+		fprintf(fp, "%g,%g,%g,", aveMSE4, avePSNR4, aveSSIM4);		//CSVファイルに上書き保存
+		cout << aveMSE4 << " , " << avePSNR4 << " , " << aveSSIM4 << endl;
 
-		cout << "ノイズ平均画像 と 元画像" << endl;		// 実行確認用
-		MSE_PSNR_SSIM_Output(Image_src, Image_dst_average, resultMSE, resultPSNR, resultSSIM);
-		fprintf(fp, "%g,%g,%g,", resultMSE, resultPSNR, resultSSIM);		//CSVファイルに上書き保存
+		cout << "ノイズ平均画像 と 元画像 : ";
+		aveMSE5 /= (double)DO_NUMBER, avePSNR5 /= (double)DO_NUMBER, aveSSIM5 /= (double)DO_NUMBER;
+		fprintf(fp, "%g,%g,%g,", aveMSE5, avePSNR5, aveSSIM5);		//CSVファイルに上書き保存
+		cout << aveMSE5 << " , " << avePSNR5 << " , " << aveSSIM5 << endl;
 
-		cout << "NLM修復画像(デフォルト) と 元画像" << endl;	// 実行確認用
-		MSE_PSNR_SSIM(Image_src, Image_dst_NLMdef);
-
-		fprintf(fp, "%g,%g\n", time, time2);	//CSVファイルに保存
+		aveTIME1 /= (double)DO_NUMBER, aveTIME2 /= (double)DO_NUMBER;
+		fprintf(fp, "%g,%g\n", aveTIME1, aveTIME2);	//CSVファイルに保存
 
 		/* 最終出力画像の指定 */
 		if (nowK == 1) {
