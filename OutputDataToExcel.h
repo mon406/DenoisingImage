@@ -129,8 +129,8 @@ void Inpainting_and_OutputToExcel() {
 		/* Step2. データの書き込み */
 		fprintf(fp, "%d,", nowK);	//CSVファイルに保存
 
-		cout << "　　　　　　　　　 平均 : MSE  ,  PSNR  ,  SSIM" << endl;	// 実行確認用
-		cout << "ノイズ画像 と 元画像　　: ";
+		cout << "　　　　　　　　　　平均 : MSE  ,  PSNR  ,  SSIM" << endl;	// 実行確認用
+		cout << "ノイズ画像 と 元画像　　 : ";
 		aveMSE1 /= (double)DO_NUMBER, avePSNR1 /= (double)DO_NUMBER, aveSSIM1 /= (double)DO_NUMBER;
 		fprintf(fp, "%g,%g,%g,", aveMSE1, avePSNR1, aveSSIM1);		//CSVファイルに上書き保存
 		cout << aveMSE1 << " , " << avePSNR1 << " , " << aveSSIM1 << endl;
