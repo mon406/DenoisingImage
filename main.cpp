@@ -3,6 +3,7 @@
 #include "EstimatedParameterMRF.h"
 #include "EstimatedParameterHMRF.h"
 #include "OutputDataToExcel.h"
+#include "Image_Histgram.h"
 
 
 int main() {
@@ -71,6 +72,21 @@ int main() {
 		cout << "ノイズ平均画像 と 元画像" << endl;		// 実行確認用
 		MSE_PSNR_SSIM(Image_src, Image_dst_average);
 	}
+
+	/* 出力ヒストグラム作成 */
+	/*DrawHist(Image_src, Image_hist_src);
+	DrawHist(Image_dst, Image_hist_dst);
+	DrawHist(Image_dst_MRF, Image_hist_dst_MRF);
+	DrawHist(Image_dst_HMRF, Image_hist_dst_HMRF);
+	DrawHist(Image_dst_average, Image_hist_dst_average);
+	DrawHist(Image_dst_NLM, Image_hist_dst_NLM);*/
+	int MAX_COUNTER_CONST = 7000;
+	DrawHist(Image_src, Image_hist_src, MAX_COUNTER_CONST);
+	DrawHist(Image_dst, Image_hist_dst, MAX_COUNTER_CONST);
+	DrawHist(Image_dst_MRF, Image_hist_dst_MRF, MAX_COUNTER_CONST);
+	DrawHist(Image_dst_HMRF, Image_hist_dst_HMRF, MAX_COUNTER_CONST);
+	DrawHist(Image_dst_average, Image_hist_dst_average, MAX_COUNTER_CONST);
+	DrawHist(Image_dst_NLM, Image_hist_dst_NLM, MAX_COUNTER_CONST);
 	//--------------------------------------------------------------------------------------------
 
 	/* 画像の出力 */
@@ -106,6 +122,12 @@ void Output_Image() {
 	string file_dst3 = "C:\\Users\\Yuki Momma\\Desktop\\DenoisingImage\\dst_HMRF.jpg";
 	string file_dst4 = "C:\\Users\\Yuki Momma\\Desktop\\DenoisingImage\\dst_average.jpg";
 	string file_dst5 = "C:\\Users\\Yuki Momma\\Desktop\\DenoisingImage\\dst_NLM.jpg";
+	string file_dst6 = "C:\\Users\\Yuki Momma\\Desktop\\DenoisingImage\\dst_hist_src.jpg";	// （出力ヒストグラム）
+	string file_dst7 = "C:\\Users\\Yuki Momma\\Desktop\\DenoisingImage\\dst_hist_dst.jpg";
+	string file_dst8 = "C:\\Users\\Yuki Momma\\Desktop\\DenoisingImage\\dst_hist_dst_MRF.jpg";
+	string file_dst9 = "C:\\Users\\Yuki Momma\\Desktop\\DenoisingImage\\dst_hist_dst_HMRF.jpg";
+	string file_dst10 = "C:\\Users\\Yuki Momma\\Desktop\\DenoisingImage\\dst_hist_dst_average.jpg";
+	string file_dst11 = "C:\\Users\\Yuki Momma\\Desktop\\DenoisingImage\\dst_hist_dst_NLM.jpg";
 
 	/* ウィンドウ生成 */
 	namedWindow(win_src, WINDOW_AUTOSIZE);
@@ -125,6 +147,13 @@ void Output_Image() {
 	imwrite(file_dst4, Image_dst_average);	// 処理結果の保存(ノイズ平均画像)
 	imshow(win_dst4, Image_dst_NLM);		// 出力画像を表示(ノイズ除去画像MRF)
 	imwrite(file_dst5, Image_dst_NLM);		// 処理結果の保存
+
+	imwrite(file_dst6, Image_hist_src);		// ヒストグラムの保存
+	imwrite(file_dst7, Image_hist_dst);
+	imwrite(file_dst8, Image_hist_dst_MRF);
+	imwrite(file_dst9, Image_hist_dst_HMRF);
+	imwrite(file_dst10, Image_hist_dst_average);
+	imwrite(file_dst11, Image_hist_dst_NLM);
 
 	waitKey(0); // キー入力待ち
 }

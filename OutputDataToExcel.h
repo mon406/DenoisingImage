@@ -159,7 +159,7 @@ void Inpainting_and_OutputToExcel() {
 		fprintf(fp, "%g,%g\n", aveTIME1, aveTIME2);	//CSVファイルに保存
 
 		/* 最終出力画像の指定 */
-		if (nowK == 1) {
+		if (nowK == 3) {
 			Image_dst.copyTo(Image_dst_sub);
 			Image_dst_average.copyTo(Image_dst_average_sub);
 			Image_dst_MRF.copyTo(Image_dst_MRF_sub);
