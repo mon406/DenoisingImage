@@ -81,7 +81,8 @@ int main() {
 	DrawHist(Image_dst_average, Image_hist_dst_average);
 	DrawHist(Image_dst_NLM, Image_hist_dst_NLM);*/
 	int MAX_COUNTER_CONST = 7000;
-	DrawHist(Image_src, Image_hist_src, MAX_COUNTER_CONST);
+	//DrawHist(Image_src, Image_hist_src, MAX_COUNTER_CONST);
+	DrawHist_line(Image_src, Image_hist_src, MAX_COUNTER_CONST);
 	DrawHist(Image_dst, Image_hist_dst, MAX_COUNTER_CONST);
 	DrawHist(Image_dst_MRF, Image_hist_dst_MRF, MAX_COUNTER_CONST);
 	DrawHist(Image_dst_HMRF, Image_hist_dst_HMRF, MAX_COUNTER_CONST);
@@ -122,7 +123,8 @@ void Output_Image() {
 	string file_dst3 = "C:\\Users\\Yuki Momma\\Desktop\\DenoisingImage\\dst_HMRF.jpg";
 	string file_dst4 = "C:\\Users\\Yuki Momma\\Desktop\\DenoisingImage\\dst_average.jpg";
 	string file_dst5 = "C:\\Users\\Yuki Momma\\Desktop\\DenoisingImage\\dst_NLM.jpg";
-	string file_dst6 = "C:\\Users\\Yuki Momma\\Desktop\\DenoisingImage\\dst_hist_src.jpg";	// （出力ヒストグラム）
+	string file_dst6 = "C:\\Users\\Yuki Momma\\Desktop\\DenoisingImage\\dst_hist_src.png";	// （出力ヒストグラム）
+	//string file_dst6 = "C:\\Users\\Yuki Momma\\Desktop\\DenoisingImage\\dst_hist_src.jpg";
 	string file_dst7 = "C:\\Users\\Yuki Momma\\Desktop\\DenoisingImage\\dst_hist_dst.jpg";
 	string file_dst8 = "C:\\Users\\Yuki Momma\\Desktop\\DenoisingImage\\dst_hist_dst_MRF.jpg";
 	string file_dst9 = "C:\\Users\\Yuki Momma\\Desktop\\DenoisingImage\\dst_hist_dst_HMRF.jpg";
