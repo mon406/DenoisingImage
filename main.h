@@ -46,7 +46,7 @@ int WIDTH;				// 入力画像の横幅（ピクセル数）
 int HEIGHT;				// 入力画像の縦幅（ピクセル数）
 int MAX_DATA;			// 入力画像の総ピクセル数
 int DO_NUMBER = 10;		// 実験回数 (K=0の時結果の平均を求める)
-int IMAGE_NUMBER = 0;	// 画像枚数 K (0:枚数変えて複数実験)
+int IMAGE_NUMBER = 1;	// 画像枚数 K (0:枚数変えて複数実験)
 
 /* ガウスノイズ付加時のパラメータ */
 static double NoiseMean = 0.0;	// ノイズの平均

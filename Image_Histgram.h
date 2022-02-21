@@ -924,7 +924,7 @@ void DrawHist_line(Mat& targetImg, Mat& dstHistImg, int MaxCounter) {
 		for (int i = 1; i < 256; i++) {
 			if (GRAY.at<float>(i) <= MAX_COUNT * 1.15) { after = Point(10 + i, 100 - (int)((float)(GRAY.at<float>(i) / MAX_COUNT) * 80)); }
 			else { after = Point(10 + i, 100 - (int)(1.15 * 80)); }
-			line(Image_hist, before, after, Scalar(255, 255, 255), 2, 8, 0);
+			line(Image_hist, before, after, Scalar(0, 0, 0), 2, 8, 0);
 			before = after;
 		}
 

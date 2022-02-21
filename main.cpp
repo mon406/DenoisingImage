@@ -5,6 +5,8 @@
 #include "OutputDataToExcel.h"
 #include "Image_Histgram.h"
 
+#include "AddNoise.h"
+
 
 int main() {
 	/* 画像の入力 */
@@ -15,6 +17,12 @@ int main() {
 	//--- 画像処理 ---------------------------------------------------------------------------
 	if (IMAGE_NUMBER == 0) {
 		Inpainting_and_OutputToExcel();
+
+		//Add_Salt_and_pepper_Noise(Image_src, Image_dst);		// ゴマ塩（インパルス）ノイズ
+		//Add_Gauss_Noise(Image_src, Image_dst_MRF);				// ガウスノイズ
+		//Image_dst.copyTo(Image_dst_HMRF);
+		//Image_dst.copyTo(Image_dst_NLM);
+		//Image_dst.copyTo(Image_dst_NLMdef);
 	}
 	else {
 		/* ガウスノイズ付加 */
@@ -27,6 +35,7 @@ int main() {
 		Image_dst.copyTo(Image_dst_HMRF);
 		Image_dst.copyTo(Image_dst_NLM);
 		Image_dst.copyTo(Image_dst_NLMdef);
+		Image_dst.copyTo(Image_dst_average);
 
 		/* MRF(マルコフ確率場)によるノイズ除去 */
 		cout << "パラメータ推定あり(MRF)のノイズ除去…" << endl;	// 実行確認用
@@ -80,10 +89,24 @@ int main() {
 	DrawHist(Image_dst_HMRF, Image_hist_dst_HMRF);
 	DrawHist(Image_dst_average, Image_hist_dst_average);
 	DrawHist(Image_dst_NLM, Image_hist_dst_NLM);*/
-	int MAX_COUNTER_CONST = 7000;
-	//DrawHist(Image_src, Image_hist_src, MAX_COUNTER_CONST);
+	int MAX_COUNTER_CONST = 6000;
+	//Mat hist_temp;
+	//cvtColor(Image_src, hist_temp, COLOR_BGR2GRAY);
+	//DrawHist(hist_temp, Image_hist_src, MAX_COUNTER_CONST);
+	////DrawHist_line(hist_temp, Image_hist_src, MAX_COUNTER_CONST);
+	//cvtColor(Image_dst, hist_temp, COLOR_BGR2GRAY);
+	//DrawHist(hist_temp, Image_hist_dst, MAX_COUNTER_CONST);
+	//cvtColor(Image_dst_MRF, hist_temp, COLOR_BGR2GRAY);
+	//DrawHist(hist_temp, Image_hist_dst_MRF, MAX_COUNTER_CONST);
+	//cvtColor(Image_dst_HMRF, hist_temp, COLOR_BGR2GRAY);
+	//DrawHist(hist_temp, Image_hist_dst_HMRF, MAX_COUNTER_CONST);
+	//cvtColor(Image_dst_average, hist_temp, COLOR_BGR2GRAY);
+	//DrawHist(hist_temp, Image_hist_dst_average, MAX_COUNTER_CONST);
+	//cvtColor(Image_dst_NLM, hist_temp, COLOR_BGR2GRAY);
+	//DrawHist(hist_temp, Image_hist_dst_NLM, MAX_COUNTER_CONST);
+	DrawHist(Image_src, Image_hist_src, MAX_COUNTER_CONST);
 	DrawHist_line(Image_src, Image_hist_src, MAX_COUNTER_CONST);
-	DrawHist(Image_dst, Image_hist_dst, MAX_COUNTER_CONST);
+	//DrawHist(Image_dst, Image_hist_dst, MAX_COUNTER_CONST);
 	DrawHist(Image_dst_MRF, Image_hist_dst_MRF, MAX_COUNTER_CONST);
 	DrawHist(Image_dst_HMRF, Image_hist_dst_HMRF, MAX_COUNTER_CONST);
 	DrawHist(Image_dst_average, Image_hist_dst_average, MAX_COUNTER_CONST);
@@ -123,8 +146,8 @@ void Output_Image() {
 	string file_dst3 = "C:\\Users\\Yuki Momma\\Desktop\\DenoisingImage\\dst_HMRF.jpg";
 	string file_dst4 = "C:\\Users\\Yuki Momma\\Desktop\\DenoisingImage\\dst_average.jpg";
 	string file_dst5 = "C:\\Users\\Yuki Momma\\Desktop\\DenoisingImage\\dst_NLM.jpg";
-	string file_dst6 = "C:\\Users\\Yuki Momma\\Desktop\\DenoisingImage\\dst_hist_src.png";	// （出力ヒストグラム）
-	//string file_dst6 = "C:\\Users\\Yuki Momma\\Desktop\\DenoisingImage\\dst_hist_src.jpg";
+	//string file_dst6 = "C:\\Users\\Yuki Momma\\Desktop\\DenoisingImage\\dst_hist_src.png";	// （出力ヒストグラム）
+	string file_dst6 = "C:\\Users\\Yuki Momma\\Desktop\\DenoisingImage\\dst_hist_src.jpg";
 	string file_dst7 = "C:\\Users\\Yuki Momma\\Desktop\\DenoisingImage\\dst_hist_dst.jpg";
 	string file_dst8 = "C:\\Users\\Yuki Momma\\Desktop\\DenoisingImage\\dst_hist_dst_MRF.jpg";
 	string file_dst9 = "C:\\Users\\Yuki Momma\\Desktop\\DenoisingImage\\dst_hist_dst_HMRF.jpg";
